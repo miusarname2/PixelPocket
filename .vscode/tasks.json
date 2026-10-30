@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "NXT: compilar",
+      "type": "shell",
+      "command": "nbc",
+      "args": ["${file}"],
+      "problemMatcher": {
+        "owner": "nxc",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^File \"(.*)\" ; line (\\d+)\\s*(.*)$",
+          "file": 1, "line": 2, "message": 3
+        }
+      },
+      "group": "build"
+    },
+    {
+      "label": "NXT: descargar",
+      "type": "shell",
+      "command": "nbc",
+      "args": ["-d", "-S=usb", "${file}"],
+      "group": "build"
+    },
+    {
+      "label": "NXT: compilar y ejecutar",
+      "type": "shell",
+      "command": "nbc",
+      "args": ["-r", "-S=usb", "${file}"],
+      "group": { "kind": "build", "isDefault": true }
+    }
+  ]
+}

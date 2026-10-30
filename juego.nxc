@@ -1,0 +1,305 @@
+const byte BOARD_W = 8;
+const byte BOARD_H = 8;
+const byte CELL_SIZE = 6;
+const byte BOARD_X = 6;
+const byte BOARD_Y = 4;
+
+byte board[8][8];
+int piece;
+int rotation;
+int pieceX;
+int pieceY;
+int score;
+bool gameOver;
+
+bool BlockAt(int kind, int turn, int x, int y)
+{
+    if (kind == 0)
+    {
+        return (x == 0 && y == 0) || (x == 1 && y == 0) ||
+               (x == 0 && y == 1) || (x == 1 && y == 1);
+    }
+
+    if (kind == 1)
+    {
+        if (turn % 2 == 0)
+            return y == 0 && x < 4;
+        return x == 1 && y < 4;
+    }
+
+    if (kind == 2)
+    {
+        if (turn == 0)
+            return (x == 0 && y < 3) || (x == 1 && y == 2);
+        if (turn == 1)
+            return (y == 0 && x < 3) || (x == 0 && y == 1);
+        if (turn == 2)
+            return (x == 1 && y < 3) || (x == 0 && y == 0);
+        return (y == 1 && x < 3) || (x == 2 && y == 0);
+    }
+
+    if (turn == 0)
+        return (x == 0 && y == 0) || (x == 1 && y == 0) ||
+               (x == 2 && y == 0) || (x == 1 && y == 1);
+    if (turn == 1)
+        return (x == 1 && y == 0) || (x == 0 && y == 1) ||
+               (x == 1 && y == 1) || (x == 1 && y == 2);
+    if (turn == 2)
+        return (x == 1 && y == 0) || (x == 0 && y == 1) ||
+               (x == 1 && y == 1) || (x == 2 && y == 1);
+    return (x == 0 && y == 0) || (x == 0 && y == 1) ||
+           (x == 1 && y == 1) || (x == 0 && y == 2);
+}
+
+bool Collides(int testX, int testY, int testRotation)
+{
+    int x;
+    int y;
+    int boardX;
+    int boardY;
+
+    for (y = 0; y < 4; y++)
+    {
+        for (x = 0; x < 4; x++)
+        {
+            if (BlockAt(piece, testRotation, x, y))
+            {
+                boardX = testX + x;
+                boardY = testY + y;
+
+                if (boardX < 0 || boardX >= BOARD_W || boardY < 0)
+                    return true;
+
+                if (boardY < BOARD_H && board[boardY][boardX] != 0)
+                    return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void SpawnPiece()
+{
+    piece = (piece + 1) % 4;
+    rotation = 0;
+    pieceX = 2;
+    pieceY = 4;
+    if (piece == 1)
+        pieceX = 1;
+    gameOver = Collides(pieceX, pieceY, rotation);
+}
+
+void ClearFullRows()
+{
+    int y;
+    int x;
+    int scanY;
+    bool full;
+
+    scanY = 0;
+    while (scanY < BOARD_H)
+    {
+        full = true;
+        for (x = 0; x < BOARD_W; x++)
+        {
+            if (board[scanY][x] == 0)
+                full = false;
+        }
+
+        if (full)
+        {
+            for (y = scanY; y < BOARD_H - 1; y++)
+            {
+                for (x = 0; x < BOARD_W; x++)
+                    board[y][x] = board[y + 1][x];
+            }
+
+            for (x = 0; x < BOARD_W; x++)
+                board[BOARD_H - 1][x] = 0;
+
+            score = score + 10;
+            PlayTone(880, 90);
+        }
+        else
+        {
+            scanY++;
+        }
+    }
+}
+
+void LockPiece()
+{
+    int x;
+    int y;
+    int boardX;
+    int boardY;
+
+    for (y = 0; y < 4; y++)
+    {
+        for (x = 0; x < 4; x++)
+        {
+            if (BlockAt(piece, rotation, x, y))
+            {
+                boardX = pieceX + x;
+                boardY = pieceY + y;
+                if (boardY >= 0 && boardY < BOARD_H &&
+                    boardX >= 0 && boardX < BOARD_W)
+                    board[boardY][boardX] = 1;
+            }
+        }
+    }
+
+    ClearFullRows();
+    SpawnPiece();
+}
+
+void DrawCell(int x, int y)
+{
+    int row;
+
+    for (row = 0; row < CELL_SIZE - 1; row++)
+        LineOut(x, y + row, x + CELL_SIZE - 2, y + row);
+}
+
+void DrawGame()
+{
+    int x;
+    int y;
+    int screenX;
+    int screenY;
+
+    ClearScreen();
+    TextOut(20, 56, "NXT POCKET");
+    RectOut(4, 3, 52, 50);
+
+    for (y = 0; y < BOARD_H; y++)
+    {
+        for (x = 0; x < BOARD_W; x++)
+        {
+            if (board[y][x] != 0)
+                DrawCell(BOARD_X + x * CELL_SIZE, BOARD_Y + y * CELL_SIZE);
+        }
+    }
+
+    if (!gameOver)
+    {
+        for (y = 0; y < 4; y++)
+        {
+            for (x = 0; x < 4; x++)
+            {
+                if (BlockAt(piece, rotation, x, y))
+                {
+                    screenX = BOARD_X + (pieceX + x) * CELL_SIZE;
+                    screenY = BOARD_Y + (pieceY + y) * CELL_SIZE;
+                    DrawCell(screenX, screenY);
+                }
+            }
+        }
+    }
+
+    TextOut(62, 44, "PUNTOS");
+    NumOut(62, 34, score);
+    TextOut(62, 18, "IZQ DER");
+    TextOut(62, 10, "A:GIRAR");
+}
+
+void StartGame()
+{
+    int x;
+    int y;
+
+    for (y = 0; y < BOARD_H; y++)
+    {
+        for (x = 0; x < BOARD_W; x++)
+            board[y][x] = 0;
+    }
+
+    score = 0;
+    piece = 3;
+    gameOver = false;
+    SpawnPiece();
+
+    while (!gameOver)
+    {
+        DrawGame();
+
+        if (ButtonPressed(BTNLEFT, false) &&
+            !Collides(pieceX - 1, pieceY, rotation))
+            pieceX--;
+
+        if (ButtonPressed(BTNRIGHT, false) &&
+            !Collides(pieceX + 1, pieceY, rotation))
+            pieceX++;
+
+        if (ButtonPressed(BTNCENTER, false))
+        {
+            int nextRotation;
+            nextRotation = (rotation + 1) % 4;
+            if (!Collides(pieceX, pieceY, nextRotation))
+                rotation = nextRotation;
+        }
+
+        if (ButtonPressed(BTNEXIT, false))
+        {
+            while (ButtonPressed(BTNEXIT, false))
+                Wait(25);
+            return;
+        }
+
+        Wait(350);
+
+        if (!Collides(pieceX, pieceY - 1, rotation))
+            pieceY--;
+        else
+        {
+            LockPiece();
+            PlayTone(440, 45);
+        }
+    }
+
+    ClearScreen();
+    TextOut(22, 48, "FIN DE PARTIDA");
+    TextOut(22, 34, "PUNTOS:");
+    NumOut(64, 34, score);
+    TextOut(12, 12, "ENTER:MENU");
+    PlayTone(220, 350);
+    while (!ButtonPressed(BTNCENTER, false))
+        Wait(25);
+    while (ButtonPressed(BTNCENTER, false))
+        Wait(25);
+}
+
+task main()
+{
+    bool selected;
+
+    selected = false;
+    while (true)
+    {
+        ClearScreen();
+        TextOut(20, 56, "NXT POCKET");
+        TextOut(20, 40, "BLOQUES");
+        TextOut(20, 28, "ENTER: JUGAR");
+        TextOut(8, 8, "IZQ/DER MUEVE");
+
+        if (ButtonPressed(BTNCENTER, false))
+        {
+            while (ButtonPressed(BTNCENTER, false))
+                Wait(25);
+            StartGame();
+            selected = true;
+        }
+
+        if (ButtonPressed(BTNEXIT, false))
+            Stop(true);
+
+        if (selected)
+        {
+            selected = false;
+            Wait(250);
+        }
+
+        Wait(50);
+    }
+}
