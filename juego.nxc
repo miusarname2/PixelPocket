@@ -65,6 +65,42 @@ void ResetMusic()
 
 int MusicNote(int track, int step)
 {
+    if (track == 4)
+    {
+        step = step % 16;
+        if (step == 0)
+            return 784;
+        if (step == 1)
+            return 440;
+        if (step == 2)
+            return 523;
+        if (step == 3)
+            return 659;
+        if (step == 4)
+            return 392;
+        if (step == 5)
+            return 494;
+        if (step == 6)
+            return 587;
+        if (step == 7)
+            return 494;
+        if (step == 8)
+            return 330;
+        if (step == 9)
+            return 392;
+        if (step == 10)
+            return 494;
+        if (step == 11)
+            return 659;
+        if (step == 12)
+            return 587;
+        if (step == 13)
+            return 349;
+        if (step == 14)
+            return 440;
+        return 523;
+    }
+
     step = step % 8;
 
     if (track == 0)
@@ -121,13 +157,20 @@ int MusicNote(int track, int step)
     return 659;
 }
 
+int MusicLength(int track)
+{
+    if (track == 4)
+        return 16;
+    return 8;
+}
+
 void MusicTick(int track, int ticksPerNote)
 {
     musicCounter++;
     if (musicCounter >= ticksPerNote)
     {
         PlayTone(MusicNote(track, musicStep), 80);
-        musicStep = (musicStep + 1) % 8;
+        musicStep = (musicStep + 1) % MusicLength(track);
         musicCounter = 0;
     }
 }
@@ -136,6 +179,8 @@ void DrawSongPlayer(int song, int step)
 {
     int bar;
     int height;
+    int bars;
+    int barX;
 
     ClearScreen();
     TextOut(14, 54, "TUNE BOX");
@@ -146,15 +191,22 @@ void DrawSongPlayer(int song, int step)
         TextOut(20, 36, "STAR QUEST");
     else if (song == 2)
         TextOut(20, 36, "CAVE LIGHT");
-    else
+    else if (song == 3)
         TextOut(20, 36, "BEEP PARADE");
+    else
+        TextOut(16, 36, "NIGHT SHADE");
 
-    for (bar = 0; bar < 8; bar++)
+    bars = MusicLength(song);
+    for (bar = 0; bar < bars; bar++)
     {
         height = 3 + ((bar * 7 + song * 3) % 10);
         if (bar == step)
             height = height + 4;
-        RectOut(10 + bar * 11, 15, 6, height);
+        if (bars == 16)
+            barX = 3 + bar * 6;
+        else
+            barX = 10 + bar * 11;
+        RectOut(barX, 15, 4, height);
     }
     if (step < 0)
     {
@@ -181,13 +233,13 @@ void PlaySongPlayer()
         DrawSongPlayer(song, -1);
         if (ButtonPressed(BTNLEFT, false))
         {
-            song = (song + 3) % 4;
+            song = (song + 4) % 5;
             PlayTone(500, 35);
             Wait(180);
         }
         else if (ButtonPressed(BTNRIGHT, false))
         {
-            song = (song + 1) % 4;
+            song = (song + 1) % 5;
             PlayTone(600, 35);
             Wait(180);
         }
@@ -199,7 +251,7 @@ void PlaySongPlayer()
             stopSong = false;
             for (repetition = 0; repetition < 2 && !stopSong; repetition++)
             {
-                for (step = 0; step < 8 && !stopSong; step++)
+                for (step = 0; step < MusicLength(song) && !stopSong; step++)
                 {
                     if (ButtonPressed(BTNEXIT, false))
                     {
