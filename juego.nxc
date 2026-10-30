@@ -2,7 +2,7 @@ const byte BOARD_W = 8;
 const byte BOARD_H = 10;
 const byte CELL = 5;
 
-byte board[10][8];
+byte boardRows[10];
 int piece;
 int rotation;
 int pieceX;
@@ -29,6 +29,9 @@ int barrelX;
 int barrelY;
 int barrelVY;
 int barrelDirection;
+int bearX;
+int bearDirection;
+int bearClock;
 int runnerLives;
 int runnerScore;
 int frameCount;
@@ -94,9 +97,9 @@ bool TetrisCollision(int testX, int testY, int testRotation)
             {
                 bx = testX + x;
                 by = testY + y;
-                if (bx < 0 || bx >= BOARD_W || by < 0)
+                if (bx < 0 || bx >= BOARD_W || by < 0 || by >= BOARD_H)
                     return true;
-                if (by < BOARD_H && board[by][bx] != 0)
+                if ((boardRows[by] & (1 << bx)) != 0)
                     return true;
             }
         }
@@ -128,7 +131,7 @@ int TetrisClearLines()
         full = true;
         for (x = 0; x < BOARD_W; x++)
         {
-            if (board[scanY][x] == 0)
+            if ((boardRows[scanY] & (1 << x)) == 0)
                 full = false;
         }
 
@@ -136,11 +139,9 @@ int TetrisClearLines()
         {
             for (y = scanY; y < BOARD_H - 1; y++)
             {
-                for (x = 0; x < BOARD_W; x++)
-                    board[y][x] = board[y + 1][x];
+                boardRows[y] = boardRows[y + 1];
             }
-            for (x = 0; x < BOARD_W; x++)
-                board[BOARD_H - 1][x] = 0;
+            boardRows[BOARD_H - 1] = 0;
             cleared++;
             clearedLines++;
         }
@@ -160,6 +161,12 @@ void TetrisLock()
     int by;
     int rows;
 
+    if (TetrisCollision(pieceX, pieceY, rotation))
+    {
+        gameOver = true;
+        return;
+    }
+
     for (y = 0; y < 4; y++)
     {
         for (x = 0; x < 4; x++)
@@ -168,10 +175,7 @@ void TetrisLock()
             {
                 bx = pieceX + x;
                 by = pieceY + y;
-                if (by >= BOARD_H)
-                    gameOver = true;
-                else if (by >= 0 && bx >= 0 && bx < BOARD_W)
-                    board[by][bx] = 1;
+                boardRows[by] = boardRows[by] | (1 << bx);
             }
         }
     }
@@ -209,7 +213,7 @@ void DrawTetris()
         screenY = 5 + y * CELL;
         for (x = 0; x < BOARD_W; x++)
         {
-            if (board[y][x] != 0)
+            if ((boardRows[y] & (1 << x)) != 0)
                 DrawBlock(5 + x * CELL, screenY, CELL - 1, CELL - 1);
         }
     }
@@ -223,7 +227,7 @@ void DrawTetris()
                 if (TetrominoCell(piece, rotation, x, y))
                 {
                     screenY = 5 + (pieceY + y) * CELL;
-                    if (pieceY + y < BOARD_H)
+                    if (pieceY + y >= 0 && pieceY + y < BOARD_H)
                         DrawBlock(5 + (pieceX + x) * CELL, screenY,
                                   CELL - 1, CELL - 1);
                 }
@@ -245,10 +249,7 @@ void PlayTetris()
     int nextRotation;
 
     for (y = 0; y < BOARD_H; y++)
-    {
-        for (x = 0; x < BOARD_W; x++)
-            board[y][x] = 0;
-    }
+        boardRows[y] = 0;
 
     score = 0;
     clearedLines = 0;
@@ -342,7 +343,7 @@ void ShowGameInstructions(int game)
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "EXIT: MENU");
     }
-    TextOut(15, 2, "PRESS ENTER");
+    TextOut(8, 2, "ENTER TO START");
     while (!ButtonPressed(BTNCENTER, false))
         Wait(25);
     while (ButtonPressed(BTNCENTER, false))
@@ -472,32 +473,35 @@ int EnemyDistance()
 
 void DrawEnemyInView(int distance)
 {
-    int size;
+    int scale;
     int baseY;
     int left;
 
     if (distance == 1)
     {
-        size = 14;
+        scale = 2;
         baseY = 12;
     }
     else if (distance == 2)
     {
-        size = 10;
-        baseY = 16;
+        scale = 1;
+        baseY = 17;
     }
     else
     {
-        size = 6;
-        baseY = 19;
+        scale = 1;
+        baseY = 20;
     }
 
-    left = 50 - size / 2;
-    RectOut(left, baseY, size, size);
-    CircleOut(50, baseY + size - 1, size / 4);
-    LineOut(48, baseY + size, 48, baseY + size);
-    LineOut(52, baseY + size, 52, baseY + size);
-    LineOut(50, baseY + size - 3, 50, baseY + size - 3);
+    left = 50 - 4 * scale;
+    DrawBlock(left + 2 * scale, baseY, 4 * scale, scale);
+    DrawBlock(left + scale, baseY + scale, 6 * scale, scale);
+    DrawBlock(left + scale, baseY + 2 * scale, 6 * scale, 3 * scale);
+    DrawBlock(left + 2 * scale, baseY + 5 * scale, 4 * scale, 2 * scale);
+    DrawBlock(left, baseY + 6 * scale, 3 * scale, scale);
+    DrawBlock(left + 5 * scale, baseY + 6 * scale, 3 * scale, scale);
+    PointOut(left + 3 * scale, baseY + 6 * scale, DRAW_OPT_CLEAR_PIXELS);
+    PointOut(left + 5 * scale, baseY + 6 * scale, DRAW_OPT_CLEAR_PIXELS);
 }
 
 void DrawArena()
@@ -514,11 +518,19 @@ void DrawArena()
 
     ClearScreen();
     TextOut(28, 56, "DUNGEON");
-    LineOut(3, 3, 97, 3);
-    LineOut(3, 11, 97, 11);
-    LineOut(3, 11, 28, 27);
-    LineOut(97, 11, 72, 27);
+    LineOut(4, 49, 96, 49);
+    LineOut(18, 41, 82, 41);
+    LineOut(30, 35, 70, 35);
+    LineOut(40, 31, 60, 31);
     LineOut(28, 27, 72, 27);
+    LineOut(4, 49, 28, 27);
+    LineOut(96, 49, 72, 27);
+    LineOut(4, 4, 96, 4);
+    LineOut(10, 10, 90, 10);
+    LineOut(18, 16, 82, 16);
+    LineOut(26, 22, 74, 22);
+    LineOut(50, 4, 28, 27);
+    LineOut(50, 4, 72, 27);
 
     blocked = false;
     for (depth = 3; depth > 0; depth--)
@@ -551,11 +563,15 @@ void DrawArena()
     if (enemyDepth > 0)
         DrawEnemyInView(enemyDepth);
 
-    LineOut(49, 26, 51, 26);
-    LineOut(50, 25, 50, 27);
-    RectOut(44, 4, 12, 6);
-    LineOut(47, 10, 50, 14);
-    LineOut(53, 10, 50, 14);
+    LineOut(46, 26, 49, 26);
+    LineOut(51, 26, 54, 26);
+    LineOut(50, 23, 50, 25);
+    LineOut(50, 27, 50, 29);
+    RectOut(42, 4, 16, 8);
+    LineOut(44, 10, 50, 16);
+    LineOut(56, 10, 50, 16);
+    LineOut(45, 5, 48, 5);
+    LineOut(52, 5, 55, 5);
     TextOut(1, 0, "HP");
     NumOut(14, 0, lives);
     TextOut(33, 0, "CORES");
@@ -749,7 +765,7 @@ bool PlatformContains(int x, int surface)
         return true;
     if (surface == 32 && x >= 40 && x <= 86)
         return true;
-    if (surface == 46 && x >= 12 && x <= 64)
+    if (surface == 46 && x >= 12 && x <= 90)
         return true;
     return false;
 }
@@ -797,6 +813,67 @@ void DrawBear(int x, int feetY)
     LineOut(x + 6, feetY, x + 7, feetY);
 }
 
+int HeroSpriteRow(int row)
+{
+    if (row == 0)
+        return 0x24;
+    if (row == 1)
+        return 0x3C;
+    if (row == 2)
+        return 0x7E;
+    if (row == 3)
+        return 0xDB;
+    if (row == 4)
+        return 0x7E;
+    if (row == 5)
+        return 0x5A;
+    if (row == 6)
+        return 0x7E;
+    return 0x3C;
+}
+
+int BearSpriteRow(int row)
+{
+    if (row == 0)
+        return 0x3C;
+    if (row == 1)
+        return 0x7E;
+    if (row == 2)
+        return 0xFF;
+    if (row == 3)
+        return 0xDB;
+    if (row == 4)
+        return 0xFF;
+    if (row == 5)
+        return 0x7E;
+    if (row == 6)
+        return 0x3C;
+    return 0x3C;
+}
+
+void DrawPixelSprite(int x, int feetY, bool isBear)
+{
+    int row;
+    int column;
+    int mask;
+    int rows;
+
+    rows = 8;
+    for (row = 0; row < rows; row++)
+    {
+        if (isBear)
+            mask = BearSpriteRow(row);
+        else
+            mask = HeroSpriteRow(row);
+
+        for (column = 0; column < 8; column++)
+        {
+            if ((mask & (1 << column)) != 0)
+                DrawBlock(x + column * 2, feetY + row * 2, 2, 2);
+        }
+    }
+}
+
 void DrawBarrelRun()
 {
     ClearScreen();
@@ -807,9 +884,10 @@ void DrawBarrelRun()
     DrawPlatform(0, 98, 4);
     DrawPlatform(16, 56, 18);
     DrawPlatform(40, 86, 32);
-    DrawPlatform(12, 64, 46);
+    DrawPlatform(12, 90, 46);
 
-    DrawBear(runnerX, runnerY);
+    DrawPixelSprite(runnerX, runnerY, false);
+    DrawPixelSprite(bearX, 46, true);
     RectOut(barrelX, barrelY, 6, 6);
     LineOut(barrelX + 1, barrelY + 1, barrelX + 4, barrelY + 4);
     LineOut(barrelX + 4, barrelY + 1, barrelX + 1, barrelY + 4);
@@ -839,6 +917,9 @@ void PlayBarrelRun()
     runnerScore = 0;
     frameCount = 0;
     runnerDone = false;
+    bearX = 76;
+    bearDirection = -1;
+    bearClock = 0;
     ResetBarrel();
 
     while (runnerLives > 0 && !runnerDone)
@@ -847,7 +928,7 @@ void PlayBarrelRun()
 
         if (ButtonPressed(BTNLEFT, false) && runnerX > 1)
             runnerX = runnerX - 2;
-        if (ButtonPressed(BTNRIGHT, false) && runnerX < 93)
+        if (ButtonPressed(BTNRIGHT, false) && runnerX < 82)
             runnerX = runnerX + 2;
         if (ButtonPressed(BTNCENTER, false) && IsSupported(runnerX, runnerY))
         {
@@ -880,6 +961,23 @@ void PlayBarrelRun()
         }
 
         frameCount++;
+        bearClock++;
+        if (bearClock >= 6)
+        {
+            bearClock = 0;
+            bearX = bearX + bearDirection * 2;
+            if (bearX <= 68)
+            {
+                bearX = 68;
+                bearDirection = 1;
+            }
+            else if (bearX >= 82)
+            {
+                bearX = 82;
+                bearDirection = -1;
+            }
+        }
+
         if (frameCount % 4 == 0)
         {
             barrelX = barrelX + barrelDirection * 2;
@@ -929,10 +1027,23 @@ void PlayBarrelRun()
             ResetBarrel();
         }
 
-        if (runnerX >= 57 && runnerY >= 40)
+        gapX = runnerX - bearX;
+        if (gapX < 0)
+            gapX = -gapX;
+        if (gapX < 10 && runnerY >= 59 && runnerVY < 0)
         {
             runnerDone = true;
-            PlayTone(880, 160);
+            runnerScore = runnerScore + 100;
+            PlayTone(880, 220);
+        }
+        else if (gapX < 10 && runnerY < 58)
+        {
+            runnerLives--;
+            PlayTone(180, 120);
+            runnerX = 4;
+            runnerY = 4;
+            runnerVY = 0;
+            ResetBarrel();
         }
 
         Wait(90);
@@ -940,7 +1051,7 @@ void PlayBarrelRun()
 
     ClearScreen();
     if (runnerDone)
-        TextOut(16, 42, "SUMMIT REACHED");
+        TextOut(22, 42, "BEAR BEATEN");
     else
         TextOut(22, 42, "TRY AGAIN");
     TextOut(16, 26, "STEPS:");
