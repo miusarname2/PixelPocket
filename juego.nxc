@@ -642,9 +642,9 @@ void ShowGameInstructions(int game)
     else
     {
         TextOut(23, 52, "CULEBRITA");
-        TextOut(8, 38, "L/R: TURN");
-        TextOut(8, 26, "ENTER: PAUSE");
-        TextOut(8, 14, "EXIT: MENU");
+        TextOut(8, 38, "L/R: LEFT/RIGHT");
+        TextOut(8, 26, "2X L UP / R DOWN");
+        TextOut(8, 14, "ENTER: PAUSE");
     }
     TextOut(8, 2, "ENTER TO START");
     while (!ButtonPressed(BTNCENTER, false))
@@ -1711,6 +1711,8 @@ void PlaySnake()
    int i;
    int nextDirection;
    int pendingDirection;
+   int leftTapTimer;
+   int rightTapTimer;
    int headX;
    int headY;
    int nextX;
@@ -1718,6 +1720,10 @@ void PlaySnake()
    int nextCell;
    int collisionLimit;
    bool eating;
+   bool leftDown;
+   bool rightDown;
+   bool leftWasDown;
+   bool rightWasDown;
 
    ResetMusic();
    snakeLength = 3;
@@ -1726,6 +1732,10 @@ void PlaySnake()
    snakeCells[2] = 108;
    snakeDirection = 0;
    pendingDirection = snakeDirection;
+   leftTapTimer = 0;
+   rightTapTimer = 0;
+   leftWasDown = false;
+   rightWasDown = false;
    snakeScore = 0;
    snakeClock = 0;
    snakeSeed = 17;
@@ -1746,13 +1756,53 @@ void PlaySnake()
        if (ButtonPressed(BTNCENTER, false) && !PauseSnake())
            return;
 
-       if (ButtonPressed(BTNLEFT, false))
-           pendingDirection = (snakeDirection + 1) % 4;
-       else if (ButtonPressed(BTNRIGHT, false))
-           pendingDirection = (snakeDirection + 3) % 4;
+       leftDown = ButtonPressed(BTNLEFT, false);
+       rightDown = ButtonPressed(BTNRIGHT, false);
+       if (leftDown && !leftWasDown)
+       {
+           if (leftTapTimer > 0)
+           {
+               pendingDirection = 3;
+               leftTapTimer = 0;
+           }
+           else
+           {
+               pendingDirection = 2;
+               leftTapTimer = 600;
+           }
+           rightTapTimer = 0;
+       }
+       else if (rightDown && !rightWasDown)
+       {
+           if (rightTapTimer > 0)
+           {
+               pendingDirection = 1;
+               rightTapTimer = 0;
+           }
+           else
+           {
+               pendingDirection = 0;
+               rightTapTimer = 600;
+           }
+           leftTapTimer = 0;
+       }
+       leftWasDown = leftDown;
+       rightWasDown = rightDown;
 
        Wait(80);
        snakeClock = snakeClock + 80;
+       if (leftTapTimer > 0)
+       {
+           leftTapTimer = leftTapTimer - 80;
+           if (leftTapTimer < 0)
+               leftTapTimer = 0;
+       }
+       if (rightTapTimer > 0)
+       {
+           rightTapTimer = rightTapTimer - 80;
+           if (rightTapTimer < 0)
+               rightTapTimer = 0;
+       }
        MusicTick(0, 7);
        if (snakeClock < 320)
            continue;
