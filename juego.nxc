@@ -27,6 +27,10 @@ int questWins;
 int questPotions;
 int questAction;
 int questDamage;
+int questMP;
+
+int musicCounter;
+int musicStep;
 
 int runnerX;
 int runnerY;
@@ -52,6 +56,175 @@ int hopPlayerVY;
 int hopLives;
 int hopScore;
 bool hopWon;
+
+void ResetMusic()
+{
+    musicCounter = 0;
+    musicStep = 0;
+}
+
+int MusicNote(int track, int step)
+{
+    step = step % 8;
+
+    if (track == 0)
+    {
+        if (step == 0 || step == 4)
+            return 659;
+        if (step == 1 || step == 7)
+            return 784;
+        if (step == 2)
+            return 880;
+        if (step == 3)
+            return 784;
+        if (step == 5)
+            return 587;
+        return 659;
+    }
+    if (track == 1)
+    {
+        if (step == 0 || step == 7)
+            return 392;
+        if (step == 1)
+            return 494;
+        if (step == 2 || step == 6)
+            return 587;
+        if (step == 3 || step == 5)
+            return 659;
+        return 784;
+    }
+    if (track == 2)
+    {
+        if (step == 0 || step == 5)
+            return 523;
+        if (step == 1)
+            return 659;
+        if (step == 2)
+            return 784;
+        if (step == 3)
+            return 698;
+        if (step == 4)
+            return 659;
+        if (step == 6)
+            return 587;
+        return 698;
+    }
+
+    if (step == 0 || step == 5)
+        return 587;
+    if (step == 1 || step == 6)
+        return 698;
+    if (step == 2)
+        return 880;
+    if (step == 3 || step == 7)
+        return 784;
+    return 659;
+}
+
+void MusicTick(int track, int ticksPerNote)
+{
+    musicCounter++;
+    if (musicCounter >= ticksPerNote)
+    {
+        PlayTone(MusicNote(track, musicStep), 80);
+        musicStep = (musicStep + 1) % 8;
+        musicCounter = 0;
+    }
+}
+
+void DrawSongPlayer(int song, int step)
+{
+    int bar;
+    int height;
+
+    ClearScreen();
+    TextOut(14, 54, "TUNE BOX");
+    TextOut(4, 45, "SELECT SONG");
+    if (song == 0)
+        TextOut(20, 36, "PIXEL RUN");
+    else if (song == 1)
+        TextOut(20, 36, "STAR QUEST");
+    else if (song == 2)
+        TextOut(20, 36, "CAVE LIGHT");
+    else
+        TextOut(20, 36, "BEEP PARADE");
+
+    for (bar = 0; bar < 8; bar++)
+    {
+        height = 3 + ((bar * 7 + song * 3) % 10);
+        if (bar == step)
+            height = height + 4;
+        RectOut(10 + bar * 11, 15, 6, height);
+    }
+    if (step < 0)
+    {
+        TextOut(4, 7, "L/R: SONG");
+        TextOut(4, 0, "ENTER: PLAY");
+    }
+    else
+    {
+        TextOut(4, 7, "PLAYING...");
+        TextOut(4, 0, "EXIT: STOP");
+    }
+}
+
+void PlaySongPlayer()
+{
+    int song;
+    int step;
+    int repetition;
+    bool stopSong;
+
+    song = 0;
+    while (true)
+    {
+        DrawSongPlayer(song, -1);
+        if (ButtonPressed(BTNLEFT, false))
+        {
+            song = (song + 3) % 4;
+            PlayTone(500, 35);
+            Wait(180);
+        }
+        else if (ButtonPressed(BTNRIGHT, false))
+        {
+            song = (song + 1) % 4;
+            PlayTone(600, 35);
+            Wait(180);
+        }
+        else if (ButtonPressed(BTNCENTER, false))
+        {
+            while (ButtonPressed(BTNCENTER, false))
+                Wait(25);
+
+            stopSong = false;
+            for (repetition = 0; repetition < 2 && !stopSong; repetition++)
+            {
+                for (step = 0; step < 8 && !stopSong; step++)
+                {
+                    if (ButtonPressed(BTNEXIT, false))
+                    {
+                        while (ButtonPressed(BTNEXIT, false))
+                            Wait(25);
+                        stopSong = true;
+                    }
+                    else
+                    {
+                        DrawSongPlayer(song, step);
+                        PlayTone(MusicNote(song, step), 110);
+                        Wait(145);
+                    }
+                }
+            }
+        }
+        else if (ButtonPressed(BTNEXIT, false))
+        {
+            while (ButtonPressed(BTNEXIT, false))
+                Wait(25);
+            return;
+        }
+        Wait(35);
+    }
+}
 
 bool TetrominoCell(int kind, int turn, int x, int y)
 {
@@ -264,6 +437,7 @@ void PlayTetris()
     int y;
     int nextRotation;
 
+    ResetMusic();
     for (y = 0; y < BOARD_H; y++)
         boardRows[y] = 0;
 
@@ -297,6 +471,7 @@ void PlayTetris()
             return;
         }
 
+        MusicTick(0, 5);
         Wait(60);
         fallClock = fallClock + 60;
         if (fallClock >= 500)
@@ -348,9 +523,9 @@ void ShowGameInstructions(int game)
     else if (game == 1)
     {
         TextOut(24, 52, "MINI QUEST");
-        TextOut(8, 38, "LEFT/RIGHT: CHOOSE");
-        TextOut(8, 26, "ENTER: ACTION");
-        TextOut(8, 14, "ORANGE: MENU");
+        TextOut(8, 38, "L/R: CHOOSE");
+        TextOut(8, 26, "ENTER: USE");
+        TextOut(8, 14, "ATK/DEF/POT/MAG");
     }
     else if (game == 2)
     {
@@ -359,12 +534,19 @@ void ShowGameInstructions(int game)
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "EXIT: MENU");
     }
-    else
+    else if (game == 3)
     {
         TextOut(24, 52, "SKY HOP");
         TextOut(8, 38, "LEFT/RIGHT: RUN");
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "REACH THE STAR");
+    }
+    else
+    {
+        TextOut(28, 52, "TUNE BOX");
+        TextOut(8, 38, "L/R: SONG");
+        TextOut(8, 26, "ENTER: PLAY");
+        TextOut(8, 14, "EXIT: MENU/STOP");
     }
     TextOut(8, 2, "ENTER TO START");
     while (!ButtonPressed(BTNCENTER, false))
@@ -536,8 +718,10 @@ void DrawQuestBattle()
         TextOut(59, 56, "SLIME");
     else if (questWins == 1)
         TextOut(59, 56, "CAVE BAT");
-    else
+    else if (questWins == 2)
         TextOut(59, 56, "GOLEM");
+    else
+        TextOut(59, 56, "WISP");
     LineOut(0, 17, 99, 17);
     LineOut(0, 16, 99, 16);
     LineOut(8, 18, 18, 27);
@@ -592,15 +776,28 @@ void DrawQuestBattle()
     TextOut(57, 48, "FOE");
     DrawBlock(72, 47, enemyHP * 2, 3);
     RectOut(71, 46, (4 + questWins * 2) * 2 + 2, 5);
-    TextOut(1, 8, "ACTION");
     if (questAction == 0)
-        TextOut(44, 8, ">FIGHT");
+        TextOut(1, 8, ">ATK");
     else
-        TextOut(44, 8, ">POTION");
-    TextOut(3, 0, "POTIONS");
-    NumOut(42, 0, questPotions);
-    TextOut(61, 0, "WINS");
-    NumOut(88, 0, questWins);
+        TextOut(1, 8, " ATK");
+    if (questAction == 1)
+        TextOut(25, 8, ">DEF");
+    else
+        TextOut(25, 8, " DEF");
+    if (questAction == 2)
+        TextOut(50, 8, ">POT");
+    else
+        TextOut(50, 8, " POT");
+    if (questAction == 3)
+        TextOut(75, 8, ">MAG");
+    else
+        TextOut(75, 8, " MAG");
+    TextOut(1, 0, "POT");
+    NumOut(22, 0, questPotions);
+    TextOut(39, 0, "MP");
+    NumOut(55, 0, questMP);
+    TextOut(77, 0, "W");
+    NumOut(87, 0, questWins);
 }
 
 void ResetEnemy()
@@ -690,12 +887,16 @@ void FireBlaster()
 
 void PlayMiniQuest()
 {
+    bool actionUsed;
+
+    ResetMusic();
     playerHP = 10;
     questWins = 0;
-    questPotions = 2;
+    questPotions = 3;
+    questMP = 4;
     questAction = 0;
 
-    while (playerHP > 0 && questWins < 3)
+    while (playerHP > 0 && questWins < 4)
     {
         enemyHP = 4 + questWins * 2;
         while (playerHP > 0 && enemyHP > 0)
@@ -705,7 +906,7 @@ void PlayMiniQuest()
             if (ButtonPressed(BTNLEFT, false) ||
                 ButtonPressed(BTNRIGHT, false))
             {
-                questAction = 1 - questAction;
+                questAction = (questAction + 1) % 4;
                 PlayTone(500, 35);
                 Wait(180);
             }
@@ -715,27 +916,48 @@ void PlayMiniQuest()
                 while (ButtonPressed(BTNCENTER, false))
                     Wait(25);
 
+                actionUsed = false;
                 if (questAction == 0)
                 {
                     enemyHP = enemyHP - 3;
                     PlayTone(760, 70);
                     if (enemyHP < 0)
                         enemyHP = 0;
+                    actionUsed = true;
                 }
-                else if (questPotions > 0)
+                else if (questAction == 1)
+                {
+                    actionUsed = true;
+                    PlayTone(440, 70);
+                }
+                else if (questAction == 2 && questPotions > 0)
                 {
                     questPotions--;
                     playerHP = playerHP + 4;
                     if (playerHP > 10)
                         playerHP = 10;
                     PlayTone(990, 100);
+                    actionUsed = true;
+                }
+                else if (questAction == 3 && questMP >= 2)
+                {
+                    questMP = questMP - 2;
+                    enemyHP = enemyHP - 5;
+                    if (enemyHP < 0)
+                        enemyHP = 0;
+                    PlayTone(880, 120);
+                    actionUsed = true;
                 }
                 else
                     PlayTone(220, 80);
 
-                if (enemyHP > 0)
+                if (actionUsed && enemyHP > 0)
                 {
                     questDamage = 1 + questWins;
+                    if (questAction == 1)
+                        questDamage = questDamage - 2;
+                    if (questDamage < 1)
+                        questDamage = 1;
                     playerHP = playerHP - questDamage;
                     if (playerHP < 0)
                         playerHP = 0;
@@ -750,15 +972,22 @@ void PlayMiniQuest()
                     Wait(25);
                 return;
             }
+            MusicTick(1, 9);
             Wait(35);
         }
 
         if (playerHP > 0)
         {
             questWins++;
+            if (questPotions < 3)
+                questPotions++;
+            questMP = questMP + 2;
+            if (questMP > 4)
+                questMP = 4;
             ClearScreen();
             TextOut(23, 42, "FOE DEFEATED");
-            if (questWins < 3)
+            TextOut(17, 33, "POTION +1  MP +2");
+            if (questWins < 4)
             {
                 TextOut(17, 26, "NEXT BATTLE:");
                 NumOut(80, 26, questWins + 1);
@@ -775,7 +1004,7 @@ void PlayMiniQuest()
     }
 
     ClearScreen();
-    if (questWins >= 3)
+    if (questWins >= 4)
         TextOut(19, 42, "QUEST COMPLETE");
     else
         TextOut(21, 42, "PARTY RESTS");
@@ -979,6 +1208,7 @@ void PlayBarrelRun()
     int gapY;
     bool wasFalling;
 
+    ResetMusic();
     runnerX = 4;
     runnerY = 4;
     runnerVY = 0;
@@ -1120,6 +1350,7 @@ void PlayBarrelRun()
             ResetBarrel();
         }
 
+        MusicTick(2, 3);
         Wait(90);
     }
 
@@ -1184,6 +1415,7 @@ void PlaySkyHop()
     int gapX;
     bool wasFalling;
 
+    ResetMusic();
     hopPlayerX = 2;
     hopPlayerY = 4;
     hopPlayerVY = 0;
@@ -1279,6 +1511,7 @@ void PlaySkyHop()
             hopWon = true;
             PlayTone(990, 180);
         }
+        MusicTick(3, 4);
         Wait(75);
     }
 
@@ -1309,27 +1542,30 @@ task main()
         TextOut(23, 48, "simulador");
         TextOut(23, 40, "de Juegos");
         if (selection == 0)
-            TextOut(8, 31, ">");
-        TextOut(16, 31, "TETRAS");
+            TextOut(8, 32, ">");
+        TextOut(16, 32, "TETRAS");
         if (selection == 1)
-            TextOut(8, 22, ">");
-        TextOut(16, 22, "MINI QUEST");
+            TextOut(8, 24, ">");
+        TextOut(16, 24, "MINI QUEST");
         if (selection == 2)
-            TextOut(8, 13, ">");
-        TextOut(16, 13, "BEAR RUN");
+            TextOut(8, 16, ">");
+        TextOut(16, 16, "BEAR RUN");
         if (selection == 3)
-            TextOut(8, 4, ">");
-        TextOut(16, 4, "SKY HOP");
+            TextOut(8, 8, ">");
+        TextOut(16, 8, "SKY HOP");
+        if (selection == 4)
+            TextOut(8, 0, ">");
+        TextOut(16, 0, "TUNE BOX");
 
         changed = false;
         if (ButtonPressed(BTNLEFT, false))
         {
-            selection = (selection + 3) % 4;
+            selection = (selection + 4) % 5;
             changed = true;
         }
         else if (ButtonPressed(BTNRIGHT, false))
         {
-            selection = (selection + 1) % 4;
+            selection = (selection + 1) % 5;
             changed = true;
         }
         else if (ButtonPressed(BTNCENTER, false))
@@ -1343,8 +1579,10 @@ task main()
                 PlayMiniQuest();
             else if (selection == 2)
                 PlayBarrelRun();
-            else
+            else if (selection == 3)
                 PlaySkyHop();
+            else
+                PlaySongPlayer();
             changed = true;
         }
         else if (ButtonPressed(BTNEXIT, false))
