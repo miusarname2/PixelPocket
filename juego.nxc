@@ -57,23 +57,13 @@ int hopLives;
 int hopScore;
 bool hopWon;
 
-byte snakeCells[200];
-int snakeLength;
-int snakeDirection;
-int snakeFood;
-int snakeScore;
-int snakeClock;
-int snakeSeed;
-bool snakeOver;
-bool snakeWon;
-
 void ResetMusic()
 {
     musicCounter = 0;
     musicStep = 0;
 }
 
-int MusicPhraseNote(int track, int step)
+int MusicNote(int track, int step)
 {
     if (track == 4)
     {
@@ -170,32 +160,8 @@ int MusicPhraseNote(int track, int step)
 int MusicLength(int track)
 {
     if (track == 4)
-        return 64;
-    return 32;
-}
-
-int MusicPhraseLength(int track)
-{
-    if (track == 4)
         return 16;
     return 8;
-}
-
-int MusicNote(int track, int step)
-{
-    int phraseLength;
-    int section;
-    int note;
-
-    phraseLength = MusicPhraseLength(track);
-    section = step / phraseLength;
-    note = MusicPhraseNote(track, step % phraseLength);
-
-    if (section % 4 == 1)
-        return note * 2;
-    if (section % 4 == 3)
-        return note / 2;
-    return note;
 }
 
 void MusicTick(int track, int ticksPerNote)
@@ -230,11 +196,11 @@ void DrawSongPlayer(int song, int step)
     else
         TextOut(16, 36, "NIGHT SHADE");
 
-    bars = MusicPhraseLength(song);
+    bars = MusicLength(song);
     for (bar = 0; bar < bars; bar++)
     {
         height = 3 + ((bar * 7 + song * 3) % 10);
-        if (bar == step % bars)
+        if (bar == step)
             height = height + 4;
         if (bars == 16)
             barX = 3 + bar * 6;
@@ -250,8 +216,6 @@ void DrawSongPlayer(int song, int step)
     else
     {
         TextOut(4, 7, "PLAYING...");
-        TextOut(69, 7, "PART");
-        NumOut(90, 7, step / MusicPhraseLength(song) + 1);
         TextOut(4, 0, "EXIT: STOP");
     }
 }
@@ -261,7 +225,6 @@ void PlaySongPlayer()
     int song;
     int step;
     int repetition;
-    int repetitions;
     bool stopSong;
 
     song = 0;
@@ -286,9 +249,7 @@ void PlaySongPlayer()
                 Wait(25);
 
             stopSong = false;
-            repetitions = 256 / MusicLength(song);
-            for (repetition = 0; repetition < repetitions && !stopSong;
-                 repetition++)
+            for (repetition = 0; repetition < 2 && !stopSong; repetition++)
             {
                 for (step = 0; step < MusicLength(song) && !stopSong; step++)
                 {
@@ -301,8 +262,8 @@ void PlaySongPlayer()
                     else
                     {
                         DrawSongPlayer(song, step);
-                        PlayTone(MusicNote(song, step), 180);
-                        Wait(470);
+                        PlayTone(MusicNote(song, step), 110);
+                        Wait(145);
                     }
                 }
             }
@@ -632,19 +593,12 @@ void ShowGameInstructions(int game)
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "REACH THE STAR");
     }
-    else if (game == 4)
+    else
     {
         TextOut(28, 52, "TUNE BOX");
         TextOut(8, 38, "L/R: SONG");
-        TextOut(8, 26, "SONGS: ~2 MIN");
+        TextOut(8, 26, "ENTER: PLAY");
         TextOut(8, 14, "EXIT: MENU/STOP");
-    }
-    else
-    {
-        TextOut(23, 52, "CULEBRITA");
-        TextOut(8, 38, "L/R: TURN");
-        TextOut(8, 26, "ENTER: PAUSE");
-        TextOut(8, 14, "EXIT: MENU");
     }
     TextOut(8, 2, "ENTER TO START");
     while (!ButtonPressed(BTNCENTER, false))
@@ -1627,216 +1581,9 @@ void PlaySkyHop()
         Wait(25);
 }
 
-bool PlaceSnakeFood()
-{
-   int attempt;
-   int i;
-   bool occupied;
-
-   for (attempt = 0; attempt < 200; attempt++)
-   {
-       snakeSeed = (snakeSeed + 37) % 200;
-       occupied = false;
-       for (i = 0; i < snakeLength; i++)
-       {
-           if (snakeCells[i] == snakeSeed)
-               occupied = true;
-       }
-       if (!occupied)
-       {
-           snakeFood = snakeSeed;
-           return true;
-       }
-   }
-
-   snakeWon = true;
-   return false;
-}
-
-void DrawSnake()
-{
-   int i;
-   int cell;
-   int x;
-   int y;
-
-   ClearScreen();
-   TextOut(2, 56, "CULEBRITA");
-   TextOut(64, 56, "P");
-   NumOut(78, 56, snakeScore);
-   RectOut(0, 0, 99, 49);
-
-   for (i = 0; i < snakeLength; i++)
-   {
-       cell = snakeCells[i];
-       x = (cell % 20) * 5 + 1;
-       y = (cell / 20) * 5 + 1;
-       RectOut(x, y, 3, 3);
-   }
-
-   x = (snakeFood % 20) * 5 + 2;
-   y = (snakeFood / 20) * 5 + 2;
-   CircleOut(x, y, 2);
-}
-
-bool PauseSnake()
-{
-   ClearScreen();
-   TextOut(32, 39, "PAUSED");
-   TextOut(9, 22, "ENTER: RESUME");
-   TextOut(9, 8, "EXIT: MENU");
-
-   while (ButtonPressed(BTNCENTER, false))
-       Wait(25);
-   while (true)
-   {
-       if (ButtonPressed(BTNEXIT, false))
-       {
-           while (ButtonPressed(BTNEXIT, false))
-               Wait(25);
-           return false;
-       }
-       if (ButtonPressed(BTNCENTER, false))
-       {
-           while (ButtonPressed(BTNCENTER, false))
-               Wait(25);
-           return true;
-       }
-       Wait(25);
-   }
-}
-
-void PlaySnake()
-{
-   int i;
-   int nextDirection;
-   int pendingDirection;
-   int headX;
-   int headY;
-   int nextX;
-   int nextY;
-   int nextCell;
-   int collisionLimit;
-   bool eating;
-
-   ResetMusic();
-   snakeLength = 3;
-   snakeCells[0] = 110;
-   snakeCells[1] = 109;
-   snakeCells[2] = 108;
-   snakeDirection = 0;
-   pendingDirection = snakeDirection;
-   snakeScore = 0;
-   snakeClock = 0;
-   snakeSeed = 17;
-   snakeOver = false;
-   snakeWon = false;
-   PlaceSnakeFood();
-
-   while (!snakeOver && !snakeWon)
-   {
-       DrawSnake();
-
-       if (ButtonPressed(BTNEXIT, false))
-       {
-           while (ButtonPressed(BTNEXIT, false))
-               Wait(25);
-           return;
-       }
-       if (ButtonPressed(BTNCENTER, false) && !PauseSnake())
-           return;
-
-       if (ButtonPressed(BTNLEFT, false))
-           pendingDirection = (snakeDirection + 1) % 4;
-       else if (ButtonPressed(BTNRIGHT, false))
-           pendingDirection = (snakeDirection + 3) % 4;
-
-       Wait(80);
-       snakeClock = snakeClock + 80;
-       MusicTick(0, 7);
-       if (snakeClock < 320)
-           continue;
-       snakeClock = snakeClock - 320;
-
-       nextDirection = pendingDirection;
-       if (nextDirection != (snakeDirection + 2) % 4)
-           snakeDirection = nextDirection;
-       pendingDirection = snakeDirection;
-
-       headX = snakeCells[0] % 20;
-       headY = snakeCells[0] / 20;
-       nextX = headX;
-       nextY = headY;
-       if (snakeDirection == 0)
-           nextX++;
-       else if (snakeDirection == 1)
-           nextY++;
-       else if (snakeDirection == 2)
-           nextX--;
-       else
-           nextY--;
-
-       if (nextX < 0 || nextX >= 20 || nextY < 0 || nextY >= 10)
-       {
-           snakeOver = true;
-           break;
-       }
-
-       nextCell = nextY * 20 + nextX;
-       eating = nextCell == snakeFood;
-       collisionLimit = snakeLength;
-       if (!eating)
-           collisionLimit--;
-       for (i = 0; i < collisionLimit; i++)
-       {
-           if (snakeCells[i] == nextCell)
-               snakeOver = true;
-       }
-       if (snakeOver)
-       {
-           PlayTone(180, 160);
-           break;
-       }
-
-       if (eating)
-       {
-           if (snakeLength < 200)
-               snakeLength++;
-           snakeScore++;
-           PlayTone(880, 55);
-       }
-       for (i = snakeLength - 1; i > 0; i--)
-           snakeCells[i] = snakeCells[i - 1];
-       snakeCells[0] = nextCell;
-
-       if (eating && snakeLength == 200)
-           snakeWon = true;
-       else if (eating)
-           PlaceSnakeFood();
-   }
-
-   ClearScreen();
-   if (snakeWon)
-       TextOut(5, 42, "CULEBRA MASTER!");
-   else
-       TextOut(31, 42, "GAME OVER");
-   TextOut(21, 26, "SCORE:");
-   NumOut(59, 26, snakeScore);
-   TextOut(8, 7, "ENTER: MENU");
-   while (!ButtonPressed(BTNCENTER, false) &&
-          !ButtonPressed(BTNEXIT, false))
-       Wait(25);
-   while (ButtonPressed(BTNCENTER, false) ||
-          ButtonPressed(BTNEXIT, false))
-       Wait(25);
-}
-
 task main()
 {
     int selection;
-    int menuRow;
-    int menuItem;
-    int menuY;
     bool changed;
 
     selection = 0;
@@ -1846,36 +1593,31 @@ task main()
         TextOut(26, 56, "El mejor");
         TextOut(23, 48, "simulador");
         TextOut(23, 40, "de Juegos");
-        for (menuRow = 0; menuRow < 4; menuRow++)
-        {
-            menuItem = (selection + menuRow) % 6;
-            menuY = 31 - menuRow * 8;
-            if (menuRow == 0)
-                TextOut(8, menuY, ">");
-            if (menuItem == 0)
-                TextOut(16, menuY, "TETRAS");
-            else if (menuItem == 1)
-                TextOut(16, menuY, "MINI QUEST");
-            else if (menuItem == 2)
-                TextOut(16, menuY, "BEAR RUN");
-            else if (menuItem == 3)
-                TextOut(16, menuY, "SKY HOP");
-            else if (menuItem == 4)
-                TextOut(16, menuY, "TUNE BOX");
-            else
-                TextOut(16, menuY, "CULEBRITA");
-        }
-        TextOut(5, 0, "L/R MOVE ENTER");
+        if (selection == 0)
+            TextOut(8, 32, ">");
+        TextOut(16, 32, "TETRAS");
+        if (selection == 1)
+            TextOut(8, 24, ">");
+        TextOut(16, 24, "MINI QUEST");
+        if (selection == 2)
+            TextOut(8, 16, ">");
+        TextOut(16, 16, "BEAR RUN");
+        if (selection == 3)
+            TextOut(8, 8, ">");
+        TextOut(16, 8, "SKY HOP");
+        if (selection == 4)
+            TextOut(8, 0, ">");
+        TextOut(16, 0, "TUNE BOX");
 
         changed = false;
         if (ButtonPressed(BTNLEFT, false))
         {
-            selection = (selection + 5) % 6;
+            selection = (selection + 4) % 5;
             changed = true;
         }
         else if (ButtonPressed(BTNRIGHT, false))
         {
-            selection = (selection + 1) % 6;
+            selection = (selection + 1) % 5;
             changed = true;
         }
         else if (ButtonPressed(BTNCENTER, false))
@@ -1891,10 +1633,8 @@ task main()
                 PlayBarrelRun();
             else if (selection == 3)
                 PlaySkyHop();
-            else if (selection == 4)
-                PlaySongPlayer();
             else
-                PlaySnake();
+                PlaySongPlayer();
             changed = true;
         }
         else if (ButtonPressed(BTNEXIT, false))
