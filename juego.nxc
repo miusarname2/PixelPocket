@@ -21,6 +21,12 @@ int enemyY;
 int shots;
 int lives;
 int turnCount;
+int playerHP;
+int enemyHP;
+int questWins;
+int questPotions;
+int questAction;
+int questDamage;
 
 int runnerX;
 int runnerY;
@@ -32,10 +38,20 @@ int barrelDirection;
 int bearX;
 int bearDirection;
 int bearClock;
+int bearY;
 int runnerLives;
 int runnerScore;
 int frameCount;
 bool runnerDone;
+int hopEnemyX;
+int hopEnemyDirection;
+int hopEnemyClock;
+int hopPlayerX;
+int hopPlayerY;
+int hopPlayerVY;
+int hopLives;
+int hopScore;
+bool hopWon;
 
 bool TetrominoCell(int kind, int turn, int x, int y)
 {
@@ -331,17 +347,24 @@ void ShowGameInstructions(int game)
     }
     else if (game == 1)
     {
-        TextOut(28, 52, "DUNGEON");
-        TextOut(8, 38, "LEFT/RIGHT: TURN");
-        TextOut(8, 26, "ENTER: FIRE");
-        TextOut(8, 14, "EXIT: FORWARD");
+        TextOut(24, 52, "MINI QUEST");
+        TextOut(8, 38, "LEFT/RIGHT: CHOOSE");
+        TextOut(8, 26, "ENTER: ACTION");
+        TextOut(8, 14, "ORANGE: MENU");
     }
-    else
+    else if (game == 2)
     {
         TextOut(24, 52, "BEAR RUN");
         TextOut(8, 38, "LEFT/RIGHT: RUN");
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "EXIT: MENU");
+    }
+    else
+    {
+        TextOut(24, 52, "SKY HOP");
+        TextOut(8, 38, "LEFT/RIGHT: RUN");
+        TextOut(8, 26, "ENTER: JUMP");
+        TextOut(8, 14, "REACH THE STAR");
     }
     TextOut(8, 2, "ENTER TO START");
     while (!ButtonPressed(BTNCENTER, false))
@@ -504,78 +527,80 @@ void DrawEnemyInView(int distance)
     PointOut(left + 5 * scale, baseY + 6 * scale, DRAW_OPT_CLEAR_PIXELS);
 }
 
-void DrawArena()
+void DrawQuestBattle()
 {
-    int depth;
-    int baseX;
-    int baseY;
-    int leftX;
-    int leftY;
-    int rightX;
-    int rightY;
-    int enemyDepth;
-    bool blocked;
-
     ClearScreen();
-    TextOut(28, 56, "DUNGEON");
-    LineOut(4, 49, 96, 49);
-    LineOut(18, 41, 82, 41);
-    LineOut(30, 35, 70, 35);
-    LineOut(40, 31, 60, 31);
-    LineOut(28, 27, 72, 27);
-    LineOut(4, 49, 28, 27);
-    LineOut(96, 49, 72, 27);
-    LineOut(4, 4, 96, 4);
-    LineOut(10, 10, 90, 10);
-    LineOut(18, 16, 82, 16);
-    LineOut(26, 22, 74, 22);
-    LineOut(50, 4, 28, 27);
-    LineOut(50, 4, 72, 27);
+    TextOut(4, 56, "QUEST");
+    NumOut(35, 56, questWins + 1);
+    if (questWins == 0)
+        TextOut(59, 56, "SLIME");
+    else if (questWins == 1)
+        TextOut(59, 56, "CAVE BAT");
+    else
+        TextOut(59, 56, "GOLEM");
+    LineOut(0, 17, 99, 17);
+    LineOut(0, 16, 99, 16);
+    LineOut(8, 18, 18, 27);
+    LineOut(18, 27, 28, 18);
+    LineOut(70, 18, 80, 28);
+    LineOut(80, 28, 90, 18);
+    RectOut(38, 21, 24, 21);
+    LineOut(38, 21, 50, 29);
+    LineOut(62, 21, 50, 29);
+    DrawBlock(20, 20, 6, 5);
+    DrawBlock(19, 25, 8, 8);
+    DrawBlock(17, 26, 2, 6);
+    DrawBlock(27, 26, 2, 6);
+    DrawBlock(20, 17, 2, 4);
+    DrawBlock(26, 17, 2, 4);
+    PointOut(21, 28, DRAW_OPT_CLEAR_PIXELS);
+    PointOut(25, 28, DRAW_OPT_CLEAR_PIXELS);
 
-    blocked = false;
-    for (depth = 3; depth > 0; depth--)
+    if (questWins == 0)
     {
-        baseX = heroX + heroDX * (depth - 1);
-        baseY = heroY + heroDY * (depth - 1);
-        leftX = baseX - heroDY;
-        leftY = baseY + heroDX;
-        rightX = baseX + heroDY;
-        rightY = baseY - heroDX;
-        if (ArenaWall(leftX, leftY))
-            DrawSideWall(depth, true);
-        if (ArenaWall(rightX, rightY))
-            DrawSideWall(depth, false);
-
-        baseX = heroX + heroDX * depth;
-        baseY = heroY + heroDY * depth;
-        if (ArenaWall(baseX, baseY))
-        {
-            DrawFrontWall(depth);
-            blocked = true;
-            break;
-        }
+        DrawBlock(68, 23, 12, 4);
+        DrawBlock(70, 27, 8, 8);
+        DrawBlock(72, 35, 4, 3);
+        PointOut(72, 31, DRAW_OPT_CLEAR_PIXELS);
+        PointOut(76, 31, DRAW_OPT_CLEAR_PIXELS);
+        LineOut(73, 28, 75, 28);
+    }
+    else if (questWins == 1)
+    {
+        LineOut(66, 27, 71, 35);
+        LineOut(71, 35, 75, 29);
+        LineOut(75, 29, 79, 35);
+        LineOut(79, 35, 84, 27);
+        DrawBlock(73, 26, 5, 9);
+        PointOut(74, 31, DRAW_OPT_CLEAR_PIXELS);
+        PointOut(77, 31, DRAW_OPT_CLEAR_PIXELS);
+    }
+    else
+    {
+        DrawBlock(69, 24, 12, 12);
+        DrawBlock(66, 27, 3, 7);
+        DrawBlock(81, 27, 3, 7);
+        DrawBlock(70, 36, 4, 4);
+        DrawBlock(77, 36, 4, 4);
+        PointOut(72, 31, DRAW_OPT_CLEAR_PIXELS);
+        PointOut(77, 31, DRAW_OPT_CLEAR_PIXELS);
     }
 
-    if (!blocked)
-        RectOut(45, 22, 10, 9);
-
-    enemyDepth = EnemyDistance();
-    if (enemyDepth > 0)
-        DrawEnemyInView(enemyDepth);
-
-    LineOut(46, 26, 49, 26);
-    LineOut(51, 26, 54, 26);
-    LineOut(50, 23, 50, 25);
-    LineOut(50, 27, 50, 29);
-    RectOut(42, 4, 16, 8);
-    LineOut(44, 10, 50, 16);
-    LineOut(56, 10, 50, 16);
-    LineOut(45, 5, 48, 5);
-    LineOut(52, 5, 55, 5);
-    TextOut(1, 0, "HP");
-    NumOut(14, 0, lives);
-    TextOut(33, 0, "CORES");
-    NumOut(68, 0, shots);
+    TextOut(2, 48, "HERO");
+    DrawBlock(23, 47, playerHP * 2, 3);
+    RectOut(22, 46, 22, 5);
+    TextOut(57, 48, "FOE");
+    DrawBlock(72, 47, enemyHP * 2, 3);
+    RectOut(71, 46, (4 + questWins * 2) * 2 + 2, 5);
+    TextOut(1, 8, "ACTION");
+    if (questAction == 0)
+        TextOut(44, 8, ">FIGHT");
+    else
+        TextOut(44, 8, ">POTION");
+    TextOut(3, 0, "POTIONS");
+    NumOut(42, 0, questPotions);
+    TextOut(61, 0, "WINS");
+    NumOut(88, 0, questWins);
 }
 
 void ResetEnemy()
@@ -663,93 +688,99 @@ void FireBlaster()
         PlayTone(330, 45);
 }
 
-void PlayMazeBlaster()
+void PlayMiniQuest()
 {
-    int nextX;
-    int nextY;
-    int oldDX;
-    int oldDY;
-    bool acted;
-    bool stepForward;
+    playerHP = 10;
+    questWins = 0;
+    questPotions = 2;
+    questAction = 0;
 
-    heroX = 1;
-    heroY = 1;
-    heroDX = 1;
-    heroDY = 0;
-    shots = 0;
-    lives = 3;
-    turnCount = 0;
-    ResetEnemy();
-
-    while (lives > 0 && shots < 5)
+    while (playerHP > 0 && questWins < 3)
     {
-        DrawArena();
-        acted = false;
-        stepForward = false;
-        nextX = heroX;
-        nextY = heroY;
+        enemyHP = 4 + questWins * 2;
+        while (playerHP > 0 && enemyHP > 0)
+        {
+            DrawQuestBattle();
 
-        if (ButtonPressed(BTNLEFT, false))
-        {
-            oldDX = heroDX;
-            heroDX = -heroDY;
-            heroDY = oldDX;
-            acted = true;
-        }
-        else if (ButtonPressed(BTNRIGHT, false))
-        {
-            oldDX = heroDX;
-            heroDX = heroDY;
-            heroDY = -oldDX;
-            acted = true;
-        }
-        else if (ButtonPressed(BTNCENTER, false))
-        {
-            FireBlaster();
-            acted = true;
-        }
-        else if (ButtonPressed(BTNEXIT, false))
-        {
-            nextX = heroX + heroDX;
-            nextY = heroY + heroDY;
-            stepForward = true;
-            acted = true;
-        }
-
-        if (acted)
-        {
-            if (stepForward)
+            if (ButtonPressed(BTNLEFT, false) ||
+                ButtonPressed(BTNRIGHT, false))
             {
-                if (!ArenaWall(nextX, nextY))
+                questAction = 1 - questAction;
+                PlayTone(500, 35);
+                Wait(180);
+            }
+
+            if (ButtonPressed(BTNCENTER, false))
+            {
+                while (ButtonPressed(BTNCENTER, false))
+                    Wait(25);
+
+                if (questAction == 0)
                 {
-                    heroX = nextX;
-                    heroY = nextY;
-                    if (heroX == enemyX && heroY == enemyY)
-                    {
-                        lives--;
-                        heroX = 1;
-                        heroY = 1;
-                        ResetEnemy();
-                        PlayTone(180, 120);
-                    }
+                    enemyHP = enemyHP - 3;
+                    PlayTone(760, 70);
+                    if (enemyHP < 0)
+                        enemyHP = 0;
+                }
+                else if (questPotions > 0)
+                {
+                    questPotions--;
+                    playerHP = playerHP + 4;
+                    if (playerHP > 10)
+                        playerHP = 10;
+                    PlayTone(990, 100);
                 }
                 else
-                    PlayTone(220, 40);
+                    PlayTone(220, 80);
+
+                if (enemyHP > 0)
+                {
+                    questDamage = 1 + questWins;
+                    playerHP = playerHP - questDamage;
+                    if (playerHP < 0)
+                        playerHP = 0;
+                    PlayTone(180, 100);
+                }
+                Wait(220);
             }
-            turnCount++;
-            if (turnCount % 2 == 0)
-                EnemyTurn();
-            Wait(220);
+
+            if (ButtonPressed(BTNEXIT, false))
+            {
+                while (ButtonPressed(BTNEXIT, false))
+                    Wait(25);
+                return;
+            }
+            Wait(35);
+        }
+
+        if (playerHP > 0)
+        {
+            questWins++;
+            ClearScreen();
+            TextOut(23, 42, "FOE DEFEATED");
+            if (questWins < 3)
+            {
+                TextOut(17, 26, "NEXT BATTLE:");
+                NumOut(80, 26, questWins + 1);
+                TextOut(9, 8, "ENTER: CONTINUE");
+            }
+            else
+                TextOut(19, 8, "ENTER: FINISH");
+            PlayTone(880, 150);
+            while (!ButtonPressed(BTNCENTER, false))
+                Wait(25);
+            while (ButtonPressed(BTNCENTER, false))
+                Wait(25);
         }
     }
 
     ClearScreen();
-    if (shots >= 5)
-        TextOut(18, 42, "AREA SECURE");
+    if (questWins >= 3)
+        TextOut(19, 42, "QUEST COMPLETE");
     else
-        TextOut(18, 42, "MISSION LOST");
-    TextOut(20, 26, "CORES:");
-    NumOut(60, 26, shots);
+        TextOut(21, 42, "PARTY RESTS");
+    TextOut(20, 26, "BATTLES:");
+    NumOut(67, 26, questWins);
     TextOut(8, 6, "ENTER:MENU");
     while (!ButtonPressed(BTNCENTER, false))
         Wait(25);
@@ -761,11 +792,11 @@ bool PlatformContains(int x, int surface)
 {
     if (surface == 4)
         return true;
-    if (surface == 18 && x >= 16 && x <= 56)
+    if (surface == 18 && x >= 12 && x <= 42)
         return true;
-    if (surface == 32 && x >= 40 && x <= 86)
+    if (surface == 32 && x >= 38 && x <= 68)
         return true;
-    if (surface == 46 && x >= 12 && x <= 90)
+    if (surface == 46 && x >= 64 && x <= 94)
         return true;
     return false;
 }
@@ -796,6 +827,13 @@ void DrawPlatform(int x1, int x2, int surface)
 {
     LineOut(x1, surface, x2, surface);
     LineOut(x1, surface + 1, x2, surface + 1);
+    LineOut(x1 + 2, surface - 2, x2 - 2, surface - 2);
+
+    while (x1 + 5 < x2)
+    {
+        LineOut(x1 + 5, surface + 2, x1 + 7, surface + 2);
+        x1 = x1 + 10;
+    }
 }
 
 void DrawBear(int x, int feetY)
@@ -816,17 +854,17 @@ void DrawBear(int x, int feetY)
 int HeroSpriteRow(int row)
 {
     if (row == 0)
-        return 0x24;
+        return 0x66;
     if (row == 1)
-        return 0x3C;
+        return 0x66;
     if (row == 2)
-        return 0x7E;
+        return 0x3C;
     if (row == 3)
-        return 0xDB;
+        return 0x7E;
     if (row == 4)
         return 0x7E;
     if (row == 5)
-        return 0x5A;
+        return 0x3C;
     if (row == 6)
         return 0x7E;
     return 0x3C;
@@ -835,20 +873,20 @@ int HeroSpriteRow(int row)
 int BearSpriteRow(int row)
 {
     if (row == 0)
-        return 0x3C;
+        return 0x66;
     if (row == 1)
         return 0x7E;
     if (row == 2)
         return 0xFF;
     if (row == 3)
-        return 0xDB;
+        return 0xFF;
     if (row == 4)
         return 0xFF;
     if (row == 5)
         return 0x7E;
     if (row == 6)
-        return 0x3C;
-    return 0x3C;
+        return 0x7E;
+    return 0x66;
 }
 
 void DrawPixelSprite(int x, int feetY, bool isBear)
@@ -872,27 +910,56 @@ void DrawPixelSprite(int x, int feetY, bool isBear)
                 DrawBlock(x + column * 2, feetY + row * 2, 2, 2);
         }
     }
+
+    if (isBear)
+    {
+        PointOut(x + 4, feetY + 9, DRAW_OPT_CLEAR_PIXELS);
+        PointOut(x + 10, feetY + 9, DRAW_OPT_CLEAR_PIXELS);
+        DrawBlock(x + 7, feetY + 5, 3, 2);
+    }
+    else
+    {
+        PointOut(x + 4, feetY + 11, DRAW_OPT_CLEAR_PIXELS);
+        PointOut(x + 10, feetY + 11, DRAW_OPT_CLEAR_PIXELS);
+        LineOut(x + 6, feetY + 7, x + 8, feetY + 7);
+    }
 }
 
 void DrawBarrelRun()
 {
+    int ladderY;
+
     ClearScreen();
     TextOut(10, 56, "BEAR RUN");
     TextOut(76, 56, "L");
     NumOut(88, 56, runnerLives);
 
     DrawPlatform(0, 98, 4);
-    DrawPlatform(16, 56, 18);
-    DrawPlatform(40, 86, 32);
-    DrawPlatform(12, 90, 46);
+    DrawPlatform(12, 42, 18);
+    DrawPlatform(38, 68, 32);
+    DrawPlatform(64, 94, 46);
+    LineOut(38, 5, 38, 17);
+    LineOut(42, 5, 42, 17);
+    for (ladderY = 7; ladderY < 18; ladderY = ladderY + 4)
+        LineOut(38, ladderY, 42, ladderY);
+    LineOut(58, 19, 58, 31);
+    LineOut(62, 19, 62, 31);
+    for (ladderY = 21; ladderY < 32; ladderY = ladderY + 4)
+        LineOut(58, ladderY, 62, ladderY);
+    LineOut(68, 33, 68, 45);
+    LineOut(72, 33, 72, 45);
+    for (ladderY = 35; ladderY < 46; ladderY = ladderY + 4)
+        LineOut(68, ladderY, 72, ladderY);
 
     DrawPixelSprite(runnerX, runnerY, false);
-    DrawPixelSprite(bearX, 46, true);
+    DrawPixelSprite(bearX, bearY, true);
     RectOut(barrelX, barrelY, 6, 6);
     LineOut(barrelX + 1, barrelY + 1, barrelX + 4, barrelY + 4);
     LineOut(barrelX + 4, barrelY + 1, barrelX + 1, barrelY + 4);
-    DrawBlock(58, 46, 8, 2);
-    RectOut(60, 48, 4, 5);
+    DrawBlock(80, 46, 8, 2);
+    LineOut(84, 48, 84, 56);
+    LineOut(84, 56, 92, 54);
+    DrawBlock(85, 50, 5, 2);
 }
 
 void ResetBarrel()
@@ -906,9 +973,11 @@ void ResetBarrel()
 void PlayBarrelRun()
 {
     int oldY;
+    int previousRunnerY;
     int landing;
     int gapX;
     int gapY;
+    bool wasFalling;
 
     runnerX = 4;
     runnerY = 4;
@@ -917,7 +986,8 @@ void PlayBarrelRun()
     runnerScore = 0;
     frameCount = 0;
     runnerDone = false;
-    bearX = 76;
+    bearX = 52;
+    bearY = 32;
     bearDirection = -1;
     bearClock = 0;
     ResetBarrel();
@@ -928,7 +998,7 @@ void PlayBarrelRun()
 
         if (ButtonPressed(BTNLEFT, false) && runnerX > 1)
             runnerX = runnerX - 2;
-        if (ButtonPressed(BTNRIGHT, false) && runnerX < 82)
+        if (ButtonPressed(BTNRIGHT, false) && runnerX < 80)
             runnerX = runnerX + 2;
         if (ButtonPressed(BTNCENTER, false) && IsSupported(runnerX, runnerY))
         {
@@ -941,6 +1011,8 @@ void PlayBarrelRun()
             return;
         }
 
+        previousRunnerY = runnerY;
+        wasFalling = runnerVY < 0;
         oldY = runnerY;
         runnerY = runnerY + runnerVY;
         if (runnerVY > -8)
@@ -966,14 +1038,14 @@ void PlayBarrelRun()
         {
             bearClock = 0;
             bearX = bearX + bearDirection * 2;
-            if (bearX <= 68)
+            if (bearX <= 46)
             {
-                bearX = 68;
+                bearX = 46;
                 bearDirection = 1;
             }
-            else if (bearX >= 82)
+            else if (bearX >= 60)
             {
-                bearX = 82;
+                bearX = 60;
                 bearDirection = -1;
             }
         }
@@ -1030,13 +1102,15 @@ void PlayBarrelRun()
         gapX = runnerX - bearX;
         if (gapX < 0)
             gapX = -gapX;
-        if (gapX < 10 && runnerY >= 59 && runnerVY < 0)
+        if (gapX < 10 && wasFalling &&
+            previousRunnerY > bearY + 14 && runnerY <= bearY + 14)
         {
             runnerDone = true;
             runnerScore = runnerScore + 100;
             PlayTone(880, 220);
         }
-        else if (gapX < 10 && runnerY < 58)
+        else if (gapX < 10 && runnerY > bearY - 8 &&
+                 runnerY < bearY + 14)
         {
             runnerLives--;
             PlayTone(180, 120);
@@ -1063,23 +1137,163 @@ void PlayBarrelRun()
         Wait(25);
 }
 
-void DrawPocketLogo(int x, int y)
+void DrawBug(int x, int feetY)
 {
-    DrawBlock(x, y + 15, 3, 14);
-    DrawBlock(x + 3, y + 11, 3, 4);
-    DrawBlock(x + 6, y + 8, 4, 3);
-    DrawBlock(x + 10, y + 6, 25, 3);
+    DrawBlock(x + 3, feetY + 2, 8, 5);
+    DrawBlock(x + 5, feetY + 7, 4, 2);
+    LineOut(x + 4, feetY + 7, x + 2, feetY + 10);
+    LineOut(x + 9, feetY + 7, x + 11, feetY + 10);
+    LineOut(x + 4, feetY + 3, x + 2, feetY);
+    LineOut(x + 9, feetY + 3, x + 11, feetY);
+    PointOut(x + 5, feetY + 5, DRAW_OPT_CLEAR_PIXELS);
+    PointOut(x + 8, feetY + 5, DRAW_OPT_CLEAR_PIXELS);
+}
 
-    DrawBlock(x + 9, y + 15, 6, 13);
-    DrawBlock(x + 10, y + 12, 4, 3);
+void DrawSkyHop()
+{
+    ClearScreen();
+    TextOut(30, 56, "SKY HOP");
+    TextOut(1, 49, "LIVES");
+    NumOut(30, 49, hopLives);
+    TextOut(56, 49, "STARS");
+    NumOut(88, 49, hopScore);
 
-    LineOut(x + 24, y + 28, x + 38, y + 28);
-    LineOut(x + 22, y + 26, x + 22, y + 14);
-    LineOut(x + 22, y + 14, x + 38, y + 14);
-    LineOut(x + 27, y + 24, x + 36, y + 24);
-    LineOut(x + 26, y + 23, x + 26, y + 16);
-    LineOut(x + 27, y + 15, x + 36, y + 15);
-    DrawBlock(x + 31, y + 18, 3, 3);
+    DrawPlatform(0, 98, 4);
+    DrawPlatform(12, 42, 18);
+    DrawPlatform(38, 68, 32);
+    DrawPlatform(64, 94, 46);
+    LineOut(38, 5, 38, 17);
+    LineOut(42, 5, 42, 17);
+    LineOut(58, 19, 58, 31);
+    LineOut(62, 19, 62, 31);
+    LineOut(68, 33, 68, 45);
+    LineOut(72, 33, 72, 45);
+
+    DrawPixelSprite(hopPlayerX, hopPlayerY, false);
+    DrawBug(hopEnemyX, 32);
+    LineOut(85, 49, 85, 60);
+    LineOut(85, 60, 94, 58);
+    LineOut(85, 55, 92, 54);
+    LineOut(85, 50, 91, 48);
+}
+
+void PlaySkyHop()
+{
+    int oldY;
+    int landing;
+    int gapX;
+    bool wasFalling;
+
+    hopPlayerX = 2;
+    hopPlayerY = 4;
+    hopPlayerVY = 0;
+    hopEnemyX = 52;
+    hopEnemyDirection = 1;
+    hopEnemyClock = 0;
+    hopLives = 3;
+    hopScore = 0;
+    hopWon = false;
+    frameCount = 0;
+
+    while (hopLives > 0 && !hopWon)
+    {
+        DrawSkyHop();
+
+        if (ButtonPressed(BTNLEFT, false) && hopPlayerX > 1)
+            hopPlayerX = hopPlayerX - 2;
+        if (ButtonPressed(BTNRIGHT, false) && hopPlayerX < 82)
+            hopPlayerX = hopPlayerX + 2;
+        if (ButtonPressed(BTNCENTER, false) &&
+            IsSupported(hopPlayerX, hopPlayerY))
+        {
+            hopPlayerVY = 7;
+            PlayTone(600, 35);
+        }
+        if (ButtonPressed(BTNEXIT, false))
+        {
+            while (ButtonPressed(BTNEXIT, false))
+                Wait(25);
+            return;
+        }
+
+        oldY = hopPlayerY;
+        wasFalling = hopPlayerVY < 0;
+        hopPlayerY = hopPlayerY + hopPlayerVY;
+        if (hopPlayerVY > -8)
+            hopPlayerVY--;
+        if (hopPlayerY < oldY)
+        {
+            landing = FindLanding(hopPlayerX, oldY, hopPlayerY);
+            if (landing >= 0)
+            {
+                hopPlayerY = landing;
+                hopPlayerVY = 0;
+            }
+        }
+        if (hopPlayerY < 4)
+        {
+            hopPlayerY = 4;
+            hopPlayerVY = 0;
+        }
+
+        hopEnemyClock++;
+        if (hopEnemyClock >= 5)
+        {
+            hopEnemyClock = 0;
+            hopEnemyX = hopEnemyX + hopEnemyDirection * 2;
+            if (hopEnemyX <= 46)
+            {
+                hopEnemyX = 46;
+                hopEnemyDirection = 1;
+            }
+            else if (hopEnemyX >= 60)
+            {
+                hopEnemyX = 60;
+                hopEnemyDirection = -1;
+            }
+        }
+
+        gapX = hopPlayerX - hopEnemyX;
+        if (gapX < 0)
+            gapX = -gapX;
+        if (gapX < 10 && wasFalling && oldY > 40 &&
+            hopPlayerY <= 40)
+        {
+            hopScore++;
+            PlayTone(880, 120);
+            hopEnemyX = 52;
+            hopEnemyDirection = 1;
+        }
+        else if (gapX < 10 && hopPlayerVY <= 0 &&
+                 hopPlayerY >= 24 && hopPlayerY < 40)
+        {
+            hopLives--;
+            PlayTone(180, 120);
+            hopPlayerX = 2;
+            hopPlayerY = 4;
+            hopPlayerVY = 0;
+        }
+
+        if (hopPlayerX >= 80 && hopPlayerY >= 46)
+        {
+            hopWon = true;
+            PlayTone(990, 180);
+        }
+        Wait(75);
+    }
+
+    ClearScreen();
+    if (hopWon)
+        TextOut(21, 42, "STAR REACHED");
+    else
+        TextOut(22, 42, "TRY AGAIN");
+    TextOut(16, 26, "BUGS:");
+    NumOut(55, 26, hopScore);
+    TextOut(8, 6, "ENTER: MENU");
+    while (!ButtonPressed(BTNCENTER, false))
+        Wait(25);
+    while (ButtonPressed(BTNCENTER, false))
+        Wait(25);
 }
 
 task main()
@@ -1091,49 +1305,46 @@ task main()
     while (true)
     {
         ClearScreen();
-        TextOut(17, 56, "NXT POCKET");
-        DrawPocketLogo(2, 17);
+        TextOut(26, 56, "El mejor");
+        TextOut(23, 48, "simulador");
+        TextOut(23, 40, "de Juegos");
         if (selection == 0)
-            TextOut(42, 40, ">");
-        TextOut(49, 40, "TETRAS");
+            TextOut(8, 31, ">");
+        TextOut(16, 31, "TETRAS");
         if (selection == 1)
-            TextOut(42, 28, ">");
-        TextOut(49, 28, "DUNGEON");
+            TextOut(8, 22, ">");
+        TextOut(16, 22, "MINI QUEST");
         if (selection == 2)
-            TextOut(42, 16, ">");
-        TextOut(49, 16, "BEAR RUN");
-        TextOut(2, 3, "L/R SELECT  ENTER");
+            TextOut(8, 13, ">");
+        TextOut(16, 13, "BEAR RUN");
+        if (selection == 3)
+            TextOut(8, 4, ">");
+        TextOut(16, 4, "SKY HOP");
 
         changed = false;
         if (ButtonPressed(BTNLEFT, false))
         {
-            selection = (selection + 2) % 3;
+            selection = (selection + 3) % 4;
             changed = true;
         }
         else if (ButtonPressed(BTNRIGHT, false))
         {
-            selection = (selection + 1) % 3;
+            selection = (selection + 1) % 4;
             changed = true;
         }
         else if (ButtonPressed(BTNCENTER, false))
         {
             while (ButtonPressed(BTNCENTER, false))
                 Wait(25);
+            ShowGameInstructions(selection);
             if (selection == 0)
-            {
-                ShowGameInstructions(0);
                 PlayTetris();
-            }
             else if (selection == 1)
-            {
-                ShowGameInstructions(1);
-                PlayMazeBlaster();
-            }
-            else
-            {
-                ShowGameInstructions(2);
+                PlayMiniQuest();
+            else if (selection == 2)
                 PlayBarrelRun();
-            }
+            else
+                PlaySkyHop();
             changed = true;
         }
         else if (ButtonPressed(BTNEXIT, false))
