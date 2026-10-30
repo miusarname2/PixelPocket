@@ -1,102 +1,127 @@
 const byte BOARD_W = 8;
-const byte BOARD_H = 8;
-const byte CELL_SIZE = 6;
-const byte BOARD_X = 6;
-const byte BOARD_Y = 4;
+const byte BOARD_H = 10;
+const byte CELL = 5;
 
-byte board[8][8];
+byte board[10][8];
 int piece;
 int rotation;
 int pieceX;
 int pieceY;
 int score;
+int clearedLines;
+int fallClock;
 bool gameOver;
 
-bool BlockAt(int kind, int turn, int x, int y)
+int heroX;
+int heroY;
+int heroDX;
+int heroDY;
+int enemyX;
+int enemyY;
+int shots;
+int lives;
+int turnCount;
+
+int runnerX;
+int runnerY;
+int runnerVY;
+int barrelX;
+int barrelY;
+int barrelVY;
+int barrelDirection;
+int runnerLives;
+int runnerScore;
+int frameCount;
+bool runnerDone;
+
+bool TetrominoCell(int kind, int turn, int x, int y)
 {
-    if (kind == 0)
-    {
-        return (x == 0 && y == 0) || (x == 1 && y == 0) ||
-               (x == 0 && y == 1) || (x == 1 && y == 1);
-    }
+    int baseX;
+    int baseY;
 
-    if (kind == 1)
-    {
-        if (turn % 2 == 0)
-            return y == 0 && x < 4;
-        return x == 1 && y < 4;
-    }
-
-    if (kind == 2)
-    {
-        if (turn == 0)
-            return (x == 0 && y < 3) || (x == 1 && y == 2);
-        if (turn == 1)
-            return (y == 0 && x < 3) || (x == 0 && y == 1);
-        if (turn == 2)
-            return (x == 1 && y < 3) || (x == 0 && y == 0);
-        return (y == 1 && x < 3) || (x == 2 && y == 0);
-    }
-
-    if (turn == 0)
-        return (x == 0 && y == 0) || (x == 1 && y == 0) ||
-               (x == 2 && y == 0) || (x == 1 && y == 1);
+    baseX = x;
+    baseY = y;
     if (turn == 1)
-        return (x == 1 && y == 0) || (x == 0 && y == 1) ||
-               (x == 1 && y == 1) || (x == 1 && y == 2);
-    if (turn == 2)
-        return (x == 1 && y == 0) || (x == 0 && y == 1) ||
-               (x == 1 && y == 1) || (x == 2 && y == 1);
-    return (x == 0 && y == 0) || (x == 0 && y == 1) ||
-           (x == 1 && y == 1) || (x == 0 && y == 2);
+    {
+        baseX = y;
+        baseY = 3 - x;
+    }
+    else if (turn == 2)
+    {
+        baseX = 3 - x;
+        baseY = 3 - y;
+    }
+    else if (turn == 3)
+    {
+        baseX = 3 - y;
+        baseY = x;
+    }
+
+    if (kind == 0)
+        return baseY == 1 && baseX < 4;
+    if (kind == 1)
+        return (baseY == 1 && (baseX == 1 || baseX == 2)) ||
+               (baseY == 2 && (baseX == 1 || baseX == 2));
+    if (kind == 2)
+        return (baseY == 1 && baseX < 3) ||
+               (baseY == 2 && baseX == 1);
+    if (kind == 3)
+        return (baseY == 1 && baseX == 0) ||
+               (baseY == 2 && baseX < 3);
+    if (kind == 4)
+        return (baseY == 1 && baseX == 2) ||
+               (baseY == 2 && baseX < 3);
+    if (kind == 5)
+        return (baseY == 1 && (baseX == 1 || baseX == 2)) ||
+               (baseY == 2 && (baseX == 0 || baseX == 1));
+
+    return (baseY == 1 && (baseX == 0 || baseX == 1)) ||
+           (baseY == 2 && (baseX == 1 || baseX == 2));
 }
 
-bool Collides(int testX, int testY, int testRotation)
+bool TetrisCollision(int testX, int testY, int testRotation)
 {
     int x;
     int y;
-    int boardX;
-    int boardY;
+    int bx;
+    int by;
 
     for (y = 0; y < 4; y++)
     {
         for (x = 0; x < 4; x++)
         {
-            if (BlockAt(piece, testRotation, x, y))
+            if (TetrominoCell(piece, testRotation, x, y))
             {
-                boardX = testX + x;
-                boardY = testY + y;
-
-                if (boardX < 0 || boardX >= BOARD_W || boardY < 0)
+                bx = testX + x;
+                by = testY + y;
+                if (bx < 0 || bx >= BOARD_W || by < 0)
                     return true;
-
-                if (boardY < BOARD_H && board[boardY][boardX] != 0)
+                if (by < BOARD_H && board[by][bx] != 0)
                     return true;
             }
         }
     }
-
     return false;
 }
 
-void SpawnPiece()
+void TetrisSpawn()
 {
-    piece = (piece + 1) % 4;
+    piece = (piece + 3) % 7;
     rotation = 0;
     pieceX = 2;
-    pieceY = 4;
-    if (piece == 1)
-        pieceX = 1;
-    gameOver = Collides(pieceX, pieceY, rotation);
+    pieceY = BOARD_H - 3;
+    gameOver = TetrisCollision(pieceX, pieceY, rotation);
 }
 
-void ClearFullRows()
+int TetrisClearLines()
 {
-    int y;
     int x;
+    int y;
     int scanY;
     bool full;
+    int cleared;
 
+    cleared = 0;
     scanY = 0;
     while (scanY < BOARD_H)
     {
@@ -114,71 +139,78 @@ void ClearFullRows()
                 for (x = 0; x < BOARD_W; x++)
                     board[y][x] = board[y + 1][x];
             }
-
             for (x = 0; x < BOARD_W; x++)
                 board[BOARD_H - 1][x] = 0;
-
-            score = score + 10;
-            PlayTone(880, 90);
+            cleared++;
+            clearedLines++;
         }
         else
         {
             scanY++;
         }
     }
+    return cleared;
 }
 
-void LockPiece()
+void TetrisLock()
 {
     int x;
     int y;
-    int boardX;
-    int boardY;
+    int bx;
+    int by;
+    int rows;
 
     for (y = 0; y < 4; y++)
     {
         for (x = 0; x < 4; x++)
         {
-            if (BlockAt(piece, rotation, x, y))
+            if (TetrominoCell(piece, rotation, x, y))
             {
-                boardX = pieceX + x;
-                boardY = pieceY + y;
-                if (boardY >= 0 && boardY < BOARD_H &&
-                    boardX >= 0 && boardX < BOARD_W)
-                    board[boardY][boardX] = 1;
+                bx = pieceX + x;
+                by = pieceY + y;
+                if (by >= BOARD_H)
+                    gameOver = true;
+                else if (by >= 0 && bx >= 0 && bx < BOARD_W)
+                    board[by][bx] = 1;
             }
         }
     }
 
-    ClearFullRows();
-    SpawnPiece();
+    rows = TetrisClearLines();
+    if (rows > 0)
+    {
+        score = score + rows * rows * 10;
+        PlayTone(880, 90);
+    }
+    if (!gameOver)
+        TetrisSpawn();
 }
 
-void DrawCell(int x, int y)
+void DrawBlock(int x, int y, int width, int height)
 {
     int row;
 
-    for (row = 0; row < CELL_SIZE - 1; row++)
-        LineOut(x, y + row, x + CELL_SIZE - 2, y + row);
+    for (row = 0; row < height; row++)
+        LineOut(x, y + row, x + width - 1, y + row);
 }
 
-void DrawGame()
+void DrawTetris()
 {
     int x;
     int y;
-    int screenX;
     int screenY;
 
     ClearScreen();
-    TextOut(20, 56, "NXT POCKET");
-    RectOut(4, 3, 52, 50);
+    TextOut(24, 56, "BLOCK DROP");
+    RectOut(3, 2, 44, 54);
 
     for (y = 0; y < BOARD_H; y++)
     {
+        screenY = 5 + (BOARD_H - 1 - y) * CELL;
         for (x = 0; x < BOARD_W; x++)
         {
             if (board[y][x] != 0)
-                DrawCell(BOARD_X + x * CELL_SIZE, BOARD_Y + y * CELL_SIZE);
+                DrawBlock(5 + x * CELL, screenY, CELL - 1, CELL - 1);
         }
     }
 
@@ -188,26 +220,29 @@ void DrawGame()
         {
             for (x = 0; x < 4; x++)
             {
-                if (BlockAt(piece, rotation, x, y))
+                if (TetrominoCell(piece, rotation, x, y))
                 {
-                    screenX = BOARD_X + (pieceX + x) * CELL_SIZE;
-                    screenY = BOARD_Y + (pieceY + y) * CELL_SIZE;
-                    DrawCell(screenX, screenY);
+                    screenY = 5 + (BOARD_H - 1 - (pieceY + y)) * CELL;
+                    if (pieceY + y < BOARD_H)
+                        DrawBlock(5 + (pieceX + x) * CELL, screenY,
+                                  CELL - 1, CELL - 1);
                 }
             }
         }
     }
 
-    TextOut(62, 44, "PUNTOS");
-    NumOut(62, 34, score);
-    TextOut(62, 18, "IZQ DER");
-    TextOut(62, 10, "A:GIRAR");
+    TextOut(52, 43, "SCORE");
+    NumOut(52, 34, score);
+    TextOut(52, 21, "LINES");
+    NumOut(52, 12, clearedLines);
+    TextOut(52, 3, "ORANGE:EXIT");
 }
 
-void StartGame()
+void PlayTetris()
 {
     int x;
     int y;
+    int nextRotation;
 
     for (y = 0; y < BOARD_H; y++)
     {
@@ -216,30 +251,28 @@ void StartGame()
     }
 
     score = 0;
-    piece = 3;
+    clearedLines = 0;
+    fallClock = 0;
+    piece = 0;
     gameOver = false;
-    SpawnPiece();
+    TetrisSpawn();
 
     while (!gameOver)
     {
-        DrawGame();
+        DrawTetris();
 
         if (ButtonPressed(BTNLEFT, false) &&
-            !Collides(pieceX - 1, pieceY, rotation))
+            !TetrisCollision(pieceX - 1, pieceY, rotation))
             pieceX--;
-
         if (ButtonPressed(BTNRIGHT, false) &&
-            !Collides(pieceX + 1, pieceY, rotation))
+            !TetrisCollision(pieceX + 1, pieceY, rotation))
             pieceX++;
-
         if (ButtonPressed(BTNCENTER, false))
         {
-            int nextRotation;
             nextRotation = (rotation + 1) % 4;
-            if (!Collides(pieceX, pieceY, nextRotation))
+            if (!TetrisCollision(pieceX, pieceY, nextRotation))
                 rotation = nextRotation;
         }
-
         if (ButtonPressed(BTNEXIT, false))
         {
             while (ButtonPressed(BTNEXIT, false))
@@ -247,23 +280,466 @@ void StartGame()
             return;
         }
 
-        Wait(350);
-
-        if (!Collides(pieceX, pieceY - 1, rotation))
-            pieceY--;
-        else
+        Wait(60);
+        fallClock = fallClock + 60;
+        if (fallClock >= 500)
         {
-            LockPiece();
-            PlayTone(440, 45);
+            fallClock = 0;
+            if (!TetrisCollision(pieceX, pieceY - 1, rotation))
+                pieceY--;
+            else
+            {
+                TetrisLock();
+                PlayTone(440, 40);
+            }
         }
     }
 
     ClearScreen();
-    TextOut(22, 48, "FIN DE PARTIDA");
-    TextOut(22, 34, "PUNTOS:");
-    NumOut(64, 34, score);
-    TextOut(12, 12, "ENTER:MENU");
-    PlayTone(220, 350);
+    TextOut(18, 46, "STACK COMPLETE");
+    TextOut(20, 32, "SCORE:");
+    NumOut(60, 32, score);
+    TextOut(8, 8, "ENTER:MENU");
+    PlayTone(220, 250);
+    while (!ButtonPressed(BTNCENTER, false))
+        Wait(25);
+    while (ButtonPressed(BTNCENTER, false))
+        Wait(25);
+}
+
+bool ArenaWall(int x, int y)
+{
+    if (x < 0 || x >= 8 || y < 0 || y >= 5)
+        return true;
+    if (x == 0 || x == 7 || y == 0 || y == 4)
+        return true;
+    if ((x == 3 && y == 2) || (x == 5 && y == 1))
+        return true;
+    return false;
+}
+
+void ShowGameInstructions(int game)
+{
+    ClearScreen();
+    if (game == 0)
+    {
+        TextOut(22, 52, "BLOCK DROP");
+        TextOut(8, 36, "LEFT/RIGHT: MOVE");
+        TextOut(8, 24, "ENTER: ROTATE");
+        TextOut(8, 12, "EXIT: MENU");
+    }
+    else if (game == 1)
+    {
+        TextOut(18, 52, "MAZE BLASTER");
+        TextOut(8, 38, "LEFT/RIGHT: MOVE");
+        TextOut(8, 26, "ENTER: FIRE");
+        TextOut(8, 14, "EXIT: ADVANCE ROW");
+    }
+    else
+    {
+        TextOut(18, 52, "BARREL RUN");
+        TextOut(8, 38, "LEFT/RIGHT: RUN");
+        TextOut(8, 26, "ENTER: JUMP");
+        TextOut(8, 14, "EXIT: MENU");
+    }
+    TextOut(15, 2, "PRESS ENTER");
+    while (!ButtonPressed(BTNCENTER, false))
+        Wait(25);
+    while (ButtonPressed(BTNCENTER, false))
+        Wait(25);
+}
+
+void DrawArena()
+{
+    int x;
+    int y;
+    int px;
+    int py;
+
+    ClearScreen();
+    TextOut(22, 56, "MAZE BLASTER");
+    for (y = 0; y < 5; y++)
+    {
+        for (x = 0; x < 8; x++)
+        {
+            px = 10 + x * 10;
+            py = 3 + y * 10;
+            if (ArenaWall(x, y))
+            {
+                DrawBlock(px, py, 8, 8);
+            }
+        }
+    }
+
+    px = 12 + heroX * 10;
+    py = 5 + heroY * 10;
+    DrawBlock(px, py, 5, 5);
+    px = 12 + enemyX * 10;
+    py = 5 + enemyY * 10;
+    RectOut(px - 1, py - 1, 7, 7);
+    TextOut(0, 0, "HP");
+    NumOut(14, 0, lives);
+    TextOut(38, 0, "CORE");
+    NumOut(68, 0, shots);
+}
+
+void ResetEnemy()
+{
+    enemyX = 6;
+    enemyY = 3;
+    if (heroX == enemyX && heroY == enemyY)
+        enemyX = 5;
+}
+
+void EnemyTurn()
+{
+    int testX;
+    int testY;
+
+    testX = enemyX;
+    testY = enemyY;
+    if (heroX > enemyX)
+        testX++;
+    else if (heroX < enemyX)
+        testX--;
+    else if (heroY > enemyY)
+        testY++;
+    else if (heroY < enemyY)
+        testY--;
+
+    if (ArenaWall(testX, testY))
+    {
+        testX = enemyX;
+        testY = enemyY;
+        if (heroY > enemyY)
+            testY++;
+        else if (heroY < enemyY)
+            testY--;
+    }
+    if (!ArenaWall(testX, testY))
+    {
+        enemyX = testX;
+        enemyY = testY;
+    }
+
+    if (enemyX == heroX && enemyY == heroY)
+    {
+        lives--;
+        PlayTone(180, 120);
+        heroX = 1;
+        heroY = 1;
+        ResetEnemy();
+    }
+}
+
+void FireBlaster()
+{
+    int testX;
+    int testY;
+    int distance;
+
+    testX = heroX;
+    testY = heroY;
+    distance = 0;
+    while (distance < 6)
+    {
+        testX = testX + heroDX;
+        testY = testY + heroDY;
+        if (ArenaWall(testX, testY))
+            return;
+        if (testX == enemyX && testY == enemyY)
+        {
+            shots++;
+            PlayTone(990, 100);
+            ResetEnemy();
+            return;
+        }
+        distance++;
+    }
+    PlayTone(330, 45);
+}
+
+void PlayMazeBlaster()
+{
+    int nextX;
+    int nextY;
+    bool acted;
+
+    heroX = 1;
+    heroY = 1;
+    heroDX = 1;
+    heroDY = 0;
+    shots = 0;
+    lives = 3;
+    turnCount = 0;
+    ResetEnemy();
+
+    while (lives > 0 && shots < 5)
+    {
+        DrawArena();
+        acted = false;
+        nextX = heroX;
+        nextY = heroY;
+
+        if (ButtonPressed(BTNLEFT, false))
+        {
+            nextX--;
+            heroDX = -1;
+            heroDY = 0;
+            acted = true;
+        }
+        else if (ButtonPressed(BTNRIGHT, false))
+        {
+            nextX++;
+            heroDX = 1;
+            heroDY = 0;
+            acted = true;
+        }
+        else if (ButtonPressed(BTNCENTER, false))
+        {
+            FireBlaster();
+            acted = true;
+        }
+        else if (ButtonPressed(BTNEXIT, false))
+        {
+            if (heroY < enemyY)
+                nextY++;
+            else if (heroY > enemyY)
+                nextY--;
+            else
+                nextY++;
+            heroDX = 0;
+            if (nextY > heroY)
+                heroDY = 1;
+            else
+                heroDY = -1;
+            acted = true;
+        }
+
+        if (acted)
+        {
+            if (!ArenaWall(nextX, nextY))
+            {
+                heroX = nextX;
+                heroY = nextY;
+            }
+            turnCount++;
+            if (turnCount % 2 == 0)
+                EnemyTurn();
+            Wait(180);
+        }
+    }
+
+    ClearScreen();
+    if (shots >= 5)
+        TextOut(22, 42, "CORE SECURE");
+    else
+        TextOut(18, 42, "SIGNAL LOST");
+    TextOut(20, 26, "CORES:");
+    NumOut(60, 26, shots);
+    TextOut(8, 6, "ENTER:MENU");
+    while (!ButtonPressed(BTNCENTER, false))
+        Wait(25);
+    while (ButtonPressed(BTNCENTER, false))
+        Wait(25);
+}
+
+bool PlatformContains(int x, int surface)
+{
+    if (surface == 4)
+        return true;
+    if (surface == 18 && x >= 16 && x <= 56)
+        return true;
+    if (surface == 32 && x >= 40 && x <= 86)
+        return true;
+    if (surface == 46 && x >= 12 && x <= 64)
+        return true;
+    return false;
+}
+
+int FindLanding(int x, int oldY, int newY)
+{
+    if (oldY >= 46 && newY <= 46 && PlatformContains(x, 46))
+        return 46;
+    if (oldY >= 32 && newY <= 32 && PlatformContains(x, 32))
+        return 32;
+    if (oldY >= 18 && newY <= 18 && PlatformContains(x, 18))
+        return 18;
+    if (oldY >= 4 && newY <= 4)
+        return 4;
+    return -1;
+}
+
+bool IsSupported(int x, int y)
+{
+    if (y == 4 || (y == 18 && PlatformContains(x, 18)) ||
+        (y == 32 && PlatformContains(x, 32)) ||
+        (y == 46 && PlatformContains(x, 46)))
+        return true;
+    return false;
+}
+
+void DrawPlatform(int x1, int x2, int surface)
+{
+    int screenY;
+
+    screenY = 58 - surface;
+    LineOut(x1, screenY, x2, screenY);
+    LineOut(x1, screenY + 1, x2, screenY + 1);
+}
+
+void DrawBarrelRun()
+{
+    int screenY;
+
+    ClearScreen();
+    TextOut(10, 56, "BARREL RUN");
+    TextOut(76, 56, "L");
+    NumOut(88, 56, runnerLives);
+
+    DrawPlatform(0, 98, 4);
+    DrawPlatform(16, 56, 18);
+    DrawPlatform(40, 86, 32);
+    DrawPlatform(12, 64, 46);
+
+    screenY = 58 - runnerY - 5;
+    DrawBlock(runnerX, screenY, 5, 5);
+    screenY = 58 - barrelY - 5;
+    RectOut(barrelX, screenY, 6, 6);
+    LineOut(barrelX + 1, screenY + 1, barrelX + 4, screenY + 4);
+    LineOut(barrelX + 4, screenY + 1, barrelX + 1, screenY + 4);
+    RectOut(58, 5, 8, 8);
+}
+
+void ResetBarrel()
+{
+    barrelX = 61;
+    barrelY = 46;
+    barrelVY = 0;
+    barrelDirection = -1;
+}
+
+void PlayBarrelRun()
+{
+    int oldY;
+    int landing;
+    int gapX;
+    int gapY;
+
+    runnerX = 4;
+    runnerY = 4;
+    runnerVY = 0;
+    runnerLives = 3;
+    runnerScore = 0;
+    frameCount = 0;
+    runnerDone = false;
+    ResetBarrel();
+
+    while (runnerLives > 0 && !runnerDone)
+    {
+        DrawBarrelRun();
+
+        if (ButtonPressed(BTNLEFT, false) && runnerX > 1)
+            runnerX = runnerX - 2;
+        if (ButtonPressed(BTNRIGHT, false) && runnerX < 93)
+            runnerX = runnerX + 2;
+        if (ButtonPressed(BTNCENTER, false) && IsSupported(runnerX, runnerY))
+        {
+            runnerVY = 6;
+        }
+        if (ButtonPressed(BTNEXIT, false))
+        {
+            while (ButtonPressed(BTNEXIT, false))
+                Wait(25);
+            return;
+        }
+
+        oldY = runnerY;
+        runnerY = runnerY + runnerVY;
+        if (runnerVY > -8)
+            runnerVY--;
+        if (runnerY < oldY)
+        {
+            landing = FindLanding(runnerX, oldY, runnerY);
+            if (landing >= 0)
+            {
+                runnerY = landing;
+                runnerVY = 0;
+            }
+        }
+        if (runnerY < 4)
+        {
+            runnerY = 4;
+            runnerVY = 0;
+        }
+
+        frameCount++;
+        if (frameCount % 4 == 0)
+        {
+            barrelX = barrelX + barrelDirection * 2;
+            oldY = barrelY;
+            if (!IsSupported(barrelX, barrelY))
+            {
+                barrelY = barrelY + barrelVY;
+                if (barrelVY > -8)
+                    barrelVY--;
+                if (barrelY < oldY)
+                {
+                    landing = FindLanding(barrelX, oldY, barrelY);
+                    if (landing >= 0)
+                    {
+                        barrelY = landing;
+                        barrelVY = 0;
+                    }
+                }
+            }
+
+            if (barrelX < 2)
+            {
+                barrelDirection = 1;
+                barrelX = 2;
+            }
+            if (barrelX > 92)
+            {
+                barrelDirection = -1;
+                barrelX = 92;
+            }
+            runnerScore++;
+        }
+
+        gapX = runnerX - barrelX;
+        gapY = runnerY - barrelY;
+        if (gapX < 0)
+            gapX = -gapX;
+        if (gapY < 0)
+            gapY = -gapY;
+        if (gapX < 6 && gapY < 7)
+        {
+            runnerLives--;
+            PlayTone(180, 120);
+            runnerX = 4;
+            runnerY = 4;
+            runnerVY = 0;
+            ResetBarrel();
+        }
+
+        if (runnerX >= 57 && runnerY >= 40)
+        {
+            runnerDone = true;
+            PlayTone(880, 160);
+        }
+
+        Wait(90);
+    }
+
+    ClearScreen();
+    if (runnerDone)
+        TextOut(16, 42, "SUMMIT REACHED");
+    else
+        TextOut(22, 42, "TRY AGAIN");
+    TextOut(16, 26, "STEPS:");
+    NumOut(58, 26, runnerScore);
+    TextOut(8, 6, "ENTER:MENU");
     while (!ButtonPressed(BTNCENTER, false))
         Wait(25);
     while (ButtonPressed(BTNCENTER, false))
@@ -272,34 +748,68 @@ void StartGame()
 
 task main()
 {
-    bool selected;
+    int selection;
+    bool changed;
 
-    selected = false;
+    selection = 0;
     while (true)
     {
         ClearScreen();
-        TextOut(20, 56, "NXT POCKET");
-        TextOut(20, 40, "BLOQUES");
-        TextOut(20, 28, "ENTER: JUGAR");
-        TextOut(8, 8, "IZQ/DER MUEVE");
+        TextOut(17, 56, "NXT POCKET");
+        if (selection == 0)
+            TextOut(20, 40, "> BLOCK DROP");
+        else
+            TextOut(20, 40, "  BLOCK DROP");
+        if (selection == 1)
+            TextOut(20, 28, "> MAZE BLASTER");
+        else
+            TextOut(20, 28, "  MAZE BLASTER");
+        if (selection == 2)
+            TextOut(20, 16, "> BARREL RUN");
+        else
+            TextOut(20, 16, "  BARREL RUN");
+        TextOut(3, 3, "L/R SELECT  ENTER PLAY");
 
-        if (ButtonPressed(BTNCENTER, false))
+        changed = false;
+        if (ButtonPressed(BTNLEFT, false))
+        {
+            selection = (selection + 2) % 3;
+            changed = true;
+        }
+        else if (ButtonPressed(BTNRIGHT, false))
+        {
+            selection = (selection + 1) % 3;
+            changed = true;
+        }
+        else if (ButtonPressed(BTNCENTER, false))
         {
             while (ButtonPressed(BTNCENTER, false))
                 Wait(25);
-            StartGame();
-            selected = true;
+            if (selection == 0)
+            {
+                ShowGameInstructions(0);
+                PlayTetris();
+            }
+            else if (selection == 1)
+            {
+                ShowGameInstructions(1);
+                PlayMazeBlaster();
+            }
+            else
+            {
+                ShowGameInstructions(2);
+                PlayBarrelRun();
+            }
+            changed = true;
         }
-
-        if (ButtonPressed(BTNEXIT, false))
+        else if (ButtonPressed(BTNEXIT, false))
             Stop(true);
 
-        if (selected)
+        if (changed)
         {
-            selected = false;
-            Wait(250);
+            Wait(220);
+            changed = false;
         }
-
-        Wait(50);
+        Wait(35);
     }
 }

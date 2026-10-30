@@ -5,7 +5,7 @@
       "label": "NXT: compilar",
       "type": "shell",
       "command": "nbc",
-      "args": ["${file}"],
+      "args": ["${file}", "-O=${fileBasenameNoExtension}_build.rxe"],
       "problemMatcher": {
         "owner": "nxc",
         "fileLocation": "absolute",
