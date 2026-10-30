@@ -201,12 +201,12 @@ void DrawTetris()
     int screenY;
 
     ClearScreen();
-    TextOut(24, 56, "BLOCK DROP");
+    TextOut(32, 56, "TETRAS");
     RectOut(3, 2, 44, 54);
 
     for (y = 0; y < BOARD_H; y++)
     {
-        screenY = 5 + (BOARD_H - 1 - y) * CELL;
+        screenY = 5 + y * CELL;
         for (x = 0; x < BOARD_W; x++)
         {
             if (board[y][x] != 0)
@@ -222,7 +222,7 @@ void DrawTetris()
             {
                 if (TetrominoCell(piece, rotation, x, y))
                 {
-                    screenY = 5 + (BOARD_H - 1 - (pieceY + y)) * CELL;
+                    screenY = 5 + (pieceY + y) * CELL;
                     if (pieceY + y < BOARD_H)
                         DrawBlock(5 + (pieceX + x) * CELL, screenY,
                                   CELL - 1, CELL - 1);
@@ -235,7 +235,7 @@ void DrawTetris()
     NumOut(52, 34, score);
     TextOut(52, 21, "LINES");
     NumOut(52, 12, clearedLines);
-    TextOut(52, 3, "ORANGE:EXIT");
+    TextOut(52, 3, "EXIT: MENU");
 }
 
 void PlayTetris()
@@ -296,7 +296,7 @@ void PlayTetris()
     }
 
     ClearScreen();
-    TextOut(18, 46, "STACK COMPLETE");
+    TextOut(20, 46, "GAME OVER");
     TextOut(20, 32, "SCORE:");
     NumOut(60, 32, score);
     TextOut(8, 8, "ENTER:MENU");
@@ -323,21 +323,21 @@ void ShowGameInstructions(int game)
     ClearScreen();
     if (game == 0)
     {
-        TextOut(22, 52, "BLOCK DROP");
+        TextOut(24, 52, "TETRAS");
         TextOut(8, 36, "LEFT/RIGHT: MOVE");
         TextOut(8, 24, "ENTER: ROTATE");
         TextOut(8, 12, "EXIT: MENU");
     }
     else if (game == 1)
     {
-        TextOut(18, 52, "MAZE BLASTER");
-        TextOut(8, 38, "LEFT/RIGHT: MOVE");
+        TextOut(28, 52, "DUNGEON");
+        TextOut(8, 38, "LEFT/RIGHT: TURN");
         TextOut(8, 26, "ENTER: FIRE");
-        TextOut(8, 14, "EXIT: ADVANCE ROW");
+        TextOut(8, 14, "EXIT: FORWARD");
     }
     else
     {
-        TextOut(18, 52, "BARREL RUN");
+        TextOut(24, 52, "BEAR RUN");
         TextOut(8, 38, "LEFT/RIGHT: RUN");
         TextOut(8, 26, "ENTER: JUMP");
         TextOut(8, 14, "EXIT: MENU");
@@ -349,46 +349,249 @@ void ShowGameInstructions(int game)
         Wait(25);
 }
 
+int ViewLeft(int depth)
+{
+    if (depth == 0)
+        return 4;
+    if (depth == 1)
+        return 18;
+    if (depth == 2)
+        return 30;
+    return 40;
+}
+
+int ViewRight(int depth)
+{
+    if (depth == 0)
+        return 96;
+    if (depth == 1)
+        return 82;
+    if (depth == 2)
+        return 70;
+    return 60;
+}
+
+int ViewBottom(int depth)
+{
+    if (depth == 0)
+        return 4;
+    if (depth == 1)
+        return 12;
+    if (depth == 2)
+        return 18;
+    return 22;
+}
+
+int ViewTop(int depth)
+{
+    if (depth == 0)
+        return 49;
+    if (depth == 1)
+        return 41;
+    if (depth == 2)
+        return 35;
+    return 31;
+}
+
+void DrawSideWall(int depth, bool leftSide)
+{
+    int nearDepth;
+    int nearX;
+    int farX;
+    int nearBottom;
+    int nearTop;
+    int farBottom;
+    int farTop;
+
+    nearDepth = depth - 1;
+    nearX = ViewLeft(nearDepth);
+    farX = ViewLeft(depth);
+    nearBottom = ViewBottom(nearDepth);
+    nearTop = ViewTop(nearDepth);
+    farBottom = ViewBottom(depth);
+    farTop = ViewTop(depth);
+
+    if (leftSide)
+    {
+        LineOut(nearX, nearBottom, farX, farBottom);
+        LineOut(nearX, nearTop, farX, farTop);
+        LineOut(nearX, nearBottom, nearX, nearTop);
+        LineOut(farX, farBottom, farX, farTop);
+    }
+    else
+    {
+        nearX = ViewRight(nearDepth);
+        farX = ViewRight(depth);
+        LineOut(nearX, nearBottom, farX, farBottom);
+        LineOut(nearX, nearTop, farX, farTop);
+        LineOut(nearX, nearBottom, nearX, nearTop);
+        LineOut(farX, farBottom, farX, farTop);
+    }
+}
+
+void DrawFrontWall(int depth)
+{
+    int left;
+    int right;
+    int bottom;
+    int top;
+    int stripeX;
+
+    left = ViewLeft(depth);
+    right = ViewRight(depth);
+    bottom = ViewBottom(depth);
+    top = ViewTop(depth);
+    RectOut(left, bottom, right - left, top - bottom);
+    LineOut(left + 3, bottom + 3, right - 3, top - 3);
+    LineOut(left + 3, top - 3, right - 3, bottom + 3);
+    stripeX = left + 5;
+    while (stripeX < right - 3)
+    {
+        LineOut(stripeX, bottom + 2, stripeX, top - 2);
+        stripeX = stripeX + 6;
+    }
+}
+
+int EnemyDistance()
+{
+    int distance;
+    int testX;
+    int testY;
+
+    for (distance = 1; distance <= 3; distance++)
+    {
+        testX = heroX + heroDX * distance;
+        testY = heroY + heroDY * distance;
+        if (ArenaWall(testX, testY))
+            return 0;
+        if (testX == enemyX && testY == enemyY)
+            return distance;
+    }
+    return 0;
+}
+
+void DrawEnemyInView(int distance)
+{
+    int size;
+    int baseY;
+    int left;
+
+    if (distance == 1)
+    {
+        size = 14;
+        baseY = 12;
+    }
+    else if (distance == 2)
+    {
+        size = 10;
+        baseY = 16;
+    }
+    else
+    {
+        size = 6;
+        baseY = 19;
+    }
+
+    left = 50 - size / 2;
+    RectOut(left, baseY, size, size);
+    CircleOut(50, baseY + size - 1, size / 4);
+    LineOut(48, baseY + size, 48, baseY + size);
+    LineOut(52, baseY + size, 52, baseY + size);
+    LineOut(50, baseY + size - 3, 50, baseY + size - 3);
+}
+
 void DrawArena()
 {
-    int x;
-    int y;
-    int px;
-    int py;
+    int depth;
+    int baseX;
+    int baseY;
+    int leftX;
+    int leftY;
+    int rightX;
+    int rightY;
+    int enemyDepth;
+    bool blocked;
 
     ClearScreen();
-    TextOut(22, 56, "MAZE BLASTER");
-    for (y = 0; y < 5; y++)
+    TextOut(28, 56, "DUNGEON");
+    LineOut(3, 3, 97, 3);
+    LineOut(3, 11, 97, 11);
+    LineOut(3, 11, 28, 27);
+    LineOut(97, 11, 72, 27);
+    LineOut(28, 27, 72, 27);
+
+    blocked = false;
+    for (depth = 3; depth > 0; depth--)
     {
-        for (x = 0; x < 8; x++)
+        baseX = heroX + heroDX * (depth - 1);
+        baseY = heroY + heroDY * (depth - 1);
+        leftX = baseX - heroDY;
+        leftY = baseY + heroDX;
+        rightX = baseX + heroDY;
+        rightY = baseY - heroDX;
+        if (ArenaWall(leftX, leftY))
+            DrawSideWall(depth, true);
+        if (ArenaWall(rightX, rightY))
+            DrawSideWall(depth, false);
+
+        baseX = heroX + heroDX * depth;
+        baseY = heroY + heroDY * depth;
+        if (ArenaWall(baseX, baseY))
         {
-            px = 10 + x * 10;
-            py = 3 + y * 10;
-            if (ArenaWall(x, y))
-            {
-                DrawBlock(px, py, 8, 8);
-            }
+            DrawFrontWall(depth);
+            blocked = true;
+            break;
         }
     }
 
-    px = 12 + heroX * 10;
-    py = 5 + heroY * 10;
-    DrawBlock(px, py, 5, 5);
-    px = 12 + enemyX * 10;
-    py = 5 + enemyY * 10;
-    RectOut(px - 1, py - 1, 7, 7);
-    TextOut(0, 0, "HP");
+    if (!blocked)
+        RectOut(45, 22, 10, 9);
+
+    enemyDepth = EnemyDistance();
+    if (enemyDepth > 0)
+        DrawEnemyInView(enemyDepth);
+
+    LineOut(49, 26, 51, 26);
+    LineOut(50, 25, 50, 27);
+    RectOut(44, 4, 12, 6);
+    LineOut(47, 10, 50, 14);
+    LineOut(53, 10, 50, 14);
+    TextOut(1, 0, "HP");
     NumOut(14, 0, lives);
-    TextOut(38, 0, "CORE");
+    TextOut(33, 0, "CORES");
     NumOut(68, 0, shots);
 }
 
 void ResetEnemy()
 {
-    enemyX = 6;
-    enemyY = 3;
+    if (shots % 5 == 0)
+    {
+        enemyX = 4;
+        enemyY = 1;
+    }
+    else if (shots % 5 == 1)
+    {
+        enemyX = 6;
+        enemyY = 3;
+    }
+    else if (shots % 5 == 2)
+    {
+        enemyX = 1;
+        enemyY = 3;
+    }
+    else if (shots % 5 == 3)
+    {
+        enemyX = 4;
+        enemyY = 2;
+    }
+    else
+    {
+        enemyX = 2;
+        enemyY = 3;
+    }
+
     if (heroX == enemyX && heroY == enemyY)
-        enemyX = 5;
+        enemyX = 6;
 }
 
 void EnemyTurn()
@@ -434,36 +637,24 @@ void EnemyTurn()
 
 void FireBlaster()
 {
-    int testX;
-    int testY;
-    int distance;
-
-    testX = heroX;
-    testY = heroY;
-    distance = 0;
-    while (distance < 6)
+    if (EnemyDistance() > 0)
     {
-        testX = testX + heroDX;
-        testY = testY + heroDY;
-        if (ArenaWall(testX, testY))
-            return;
-        if (testX == enemyX && testY == enemyY)
-        {
-            shots++;
-            PlayTone(990, 100);
-            ResetEnemy();
-            return;
-        }
-        distance++;
+        shots++;
+        PlayTone(990, 100);
+        ResetEnemy();
     }
-    PlayTone(330, 45);
+    else
+        PlayTone(330, 45);
 }
 
 void PlayMazeBlaster()
 {
     int nextX;
     int nextY;
+    int oldDX;
+    int oldDY;
     bool acted;
+    bool stepForward;
 
     heroX = 1;
     heroY = 1;
@@ -478,21 +669,22 @@ void PlayMazeBlaster()
     {
         DrawArena();
         acted = false;
+        stepForward = false;
         nextX = heroX;
         nextY = heroY;
 
         if (ButtonPressed(BTNLEFT, false))
         {
-            nextX--;
-            heroDX = -1;
-            heroDY = 0;
+            oldDX = heroDX;
+            heroDX = -heroDY;
+            heroDY = oldDX;
             acted = true;
         }
         else if (ButtonPressed(BTNRIGHT, false))
         {
-            nextX++;
-            heroDX = 1;
-            heroDY = 0;
+            oldDX = heroDX;
+            heroDX = heroDY;
+            heroDY = -oldDX;
             acted = true;
         }
         else if (ButtonPressed(BTNCENTER, false))
@@ -502,39 +694,44 @@ void PlayMazeBlaster()
         }
         else if (ButtonPressed(BTNEXIT, false))
         {
-            if (heroY < enemyY)
-                nextY++;
-            else if (heroY > enemyY)
-                nextY--;
-            else
-                nextY++;
-            heroDX = 0;
-            if (nextY > heroY)
-                heroDY = 1;
-            else
-                heroDY = -1;
+            nextX = heroX + heroDX;
+            nextY = heroY + heroDY;
+            stepForward = true;
             acted = true;
         }
 
         if (acted)
         {
-            if (!ArenaWall(nextX, nextY))
+            if (stepForward)
             {
-                heroX = nextX;
-                heroY = nextY;
+                if (!ArenaWall(nextX, nextY))
+                {
+                    heroX = nextX;
+                    heroY = nextY;
+                    if (heroX == enemyX && heroY == enemyY)
+                    {
+                        lives--;
+                        heroX = 1;
+                        heroY = 1;
+                        ResetEnemy();
+                        PlayTone(180, 120);
+                    }
+                }
+                else
+                    PlayTone(220, 40);
             }
             turnCount++;
             if (turnCount % 2 == 0)
                 EnemyTurn();
-            Wait(180);
+            Wait(220);
         }
     }
 
     ClearScreen();
     if (shots >= 5)
-        TextOut(22, 42, "CORE SECURE");
+        TextOut(18, 42, "AREA SECURE");
     else
-        TextOut(18, 42, "SIGNAL LOST");
+        TextOut(18, 42, "MISSION LOST");
     TextOut(20, 26, "CORES:");
     NumOut(60, 26, shots);
     TextOut(8, 6, "ENTER:MENU");
@@ -581,19 +778,29 @@ bool IsSupported(int x, int y)
 
 void DrawPlatform(int x1, int x2, int surface)
 {
-    int screenY;
+    LineOut(x1, surface, x2, surface);
+    LineOut(x1, surface + 1, x2, surface + 1);
+}
 
-    screenY = 58 - surface;
-    LineOut(x1, screenY, x2, screenY);
-    LineOut(x1, screenY + 1, x2, screenY + 1);
+void DrawBear(int x, int feetY)
+{
+    RectOut(x + 2, feetY + 1, 5, 5);
+    CircleOut(x + 4, feetY + 9, 3);
+    CircleOut(x + 1, feetY + 11, 2);
+    CircleOut(x + 7, feetY + 11, 2);
+    PointOut(x + 3, feetY + 10);
+    PointOut(x + 5, feetY + 10);
+    CircleOut(x + 4, feetY + 8, 1);
+    LineOut(x, feetY + 3, x + 2, feetY + 4);
+    LineOut(x + 6, feetY + 4, x + 8, feetY + 3);
+    LineOut(x + 2, feetY, x + 3, feetY);
+    LineOut(x + 6, feetY, x + 7, feetY);
 }
 
 void DrawBarrelRun()
 {
-    int screenY;
-
     ClearScreen();
-    TextOut(10, 56, "BARREL RUN");
+    TextOut(10, 56, "BEAR RUN");
     TextOut(76, 56, "L");
     NumOut(88, 56, runnerLives);
 
@@ -602,13 +809,12 @@ void DrawBarrelRun()
     DrawPlatform(40, 86, 32);
     DrawPlatform(12, 64, 46);
 
-    screenY = 58 - runnerY - 5;
-    DrawBlock(runnerX, screenY, 5, 5);
-    screenY = 58 - barrelY - 5;
-    RectOut(barrelX, screenY, 6, 6);
-    LineOut(barrelX + 1, screenY + 1, barrelX + 4, screenY + 4);
-    LineOut(barrelX + 4, screenY + 1, barrelX + 1, screenY + 4);
-    RectOut(58, 5, 8, 8);
+    DrawBear(runnerX, runnerY);
+    RectOut(barrelX, barrelY, 6, 6);
+    LineOut(barrelX + 1, barrelY + 1, barrelX + 4, barrelY + 4);
+    LineOut(barrelX + 4, barrelY + 1, barrelX + 1, barrelY + 4);
+    DrawBlock(58, 46, 8, 2);
+    RectOut(60, 48, 4, 5);
 }
 
 void ResetBarrel()
@@ -746,6 +952,25 @@ void PlayBarrelRun()
         Wait(25);
 }
 
+void DrawPocketLogo(int x, int y)
+{
+    DrawBlock(x, y + 15, 3, 14);
+    DrawBlock(x + 3, y + 11, 3, 4);
+    DrawBlock(x + 6, y + 8, 4, 3);
+    DrawBlock(x + 10, y + 6, 25, 3);
+
+    DrawBlock(x + 9, y + 15, 6, 13);
+    DrawBlock(x + 10, y + 12, 4, 3);
+
+    LineOut(x + 24, y + 28, x + 38, y + 28);
+    LineOut(x + 22, y + 26, x + 22, y + 14);
+    LineOut(x + 22, y + 14, x + 38, y + 14);
+    LineOut(x + 27, y + 24, x + 36, y + 24);
+    LineOut(x + 26, y + 23, x + 26, y + 16);
+    LineOut(x + 27, y + 15, x + 36, y + 15);
+    DrawBlock(x + 31, y + 18, 3, 3);
+}
+
 task main()
 {
     int selection;
@@ -756,19 +981,17 @@ task main()
     {
         ClearScreen();
         TextOut(17, 56, "NXT POCKET");
+        DrawPocketLogo(2, 17);
         if (selection == 0)
-            TextOut(20, 40, "> BLOCK DROP");
-        else
-            TextOut(20, 40, "  BLOCK DROP");
+            TextOut(42, 40, ">");
+        TextOut(49, 40, "TETRAS");
         if (selection == 1)
-            TextOut(20, 28, "> MAZE BLASTER");
-        else
-            TextOut(20, 28, "  MAZE BLASTER");
+            TextOut(42, 28, ">");
+        TextOut(49, 28, "DUNGEON");
         if (selection == 2)
-            TextOut(20, 16, "> BARREL RUN");
-        else
-            TextOut(20, 16, "  BARREL RUN");
-        TextOut(3, 3, "L/R SELECT  ENTER PLAY");
+            TextOut(42, 16, ">");
+        TextOut(49, 16, "BEAR RUN");
+        TextOut(2, 3, "L/R SELECT  ENTER");
 
         changed = false;
         if (ButtonPressed(BTNLEFT, false))
